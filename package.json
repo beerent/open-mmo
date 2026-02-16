@@ -1,0 +1,11 @@
+{
+  "name": "shireland",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "build": "pnpm -r build"
+  },
+  "devDependencies": {
+    "playwright": "^1.58.2"
+  }
+}
