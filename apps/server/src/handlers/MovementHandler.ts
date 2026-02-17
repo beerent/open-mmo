@@ -31,14 +31,6 @@ export class MovementHandler {
       const targetX = player.x + dx;
       const targetY = player.y + dy;
 
-      // Corner-cutting prevention: for diagonal moves, both adjacent cardinal tiles must be passable
-      if (dx !== 0 && dy !== 0) {
-        if (!this.collisionMap.isPassable(player.x + dx, player.y) ||
-            !this.collisionMap.isPassable(player.x, player.y + dy)) {
-          return;
-        }
-      }
-
       // Validate collision
       if (!this.collisionMap.isPassable(targetX, targetY)) return;
 

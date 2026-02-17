@@ -18,7 +18,7 @@ export class ChatBox {
     this.container.id = "chat-box";
     this.container.innerHTML = `
       <div class="chat-messages" id="chat-messages"></div>
-      <input type="text" class="chat-input" id="chat-input" placeholder="Press Enter to chat..." maxlength="200" autocomplete="off" />
+      <input type="text" class="chat-input" id="chat-input" placeholder="Press T or Enter to chat..." maxlength="200" autocomplete="off" />
     `;
 
     this.addStyles();
@@ -107,9 +107,9 @@ export class ChatBox {
   }
 
   private bindEvents() {
-    // Enter to focus
+    // Enter or T to focus
     window.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && document.activeElement !== this.input) {
+      if ((e.key === "Enter" || e.key === "t" || e.key === "T") && document.activeElement !== this.input) {
         e.preventDefault();
         this.input.focus();
         this.onFocusChange(true);

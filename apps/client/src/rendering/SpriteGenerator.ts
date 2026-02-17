@@ -21,24 +21,16 @@ export const CHAR_FRAME_H = RUN_FRAME_H;
 
 /**
  * Direction config: which sprite sheet and flip setting to use per direction.
- * 0 = Down      → Run_Down.png,      no flip
- * 1 = Left      → Run.png,           flip horizontally
- * 2 = Right     → Run.png,           no flip
- * 3 = Up        → Run_Up.png,        no flip
- * 4 = DownLeft  → Run_DownRight.png, flip horizontally
- * 5 = DownRight → Run_DownRight.png, no flip
- * 6 = UpLeft    → Run_UpRight.png,   flip horizontally
- * 7 = UpRight   → Run_UpRight.png,   no flip
+ * 0 = Down  → Run_Down.png, no flip
+ * 1 = Left  → Run.png,      flip horizontally
+ * 2 = Right → Run.png,      no flip
+ * 3 = Up    → Run_Up.png,   no flip
  */
-const DIR_CONFIG: { sheet: "side" | "down" | "up" | "downright" | "upright"; flip: boolean }[] = [
-  { sheet: "down",      flip: false }, // Down
-  { sheet: "side",      flip: true },  // Left
-  { sheet: "side",      flip: false }, // Right
-  { sheet: "up",        flip: false }, // Up
-  { sheet: "downright", flip: true },  // DownLeft
-  { sheet: "downright", flip: false }, // DownRight
-  { sheet: "upright",   flip: true },  // UpLeft
-  { sheet: "upright",   flip: false }, // UpRight
+const DIR_CONFIG: { sheet: "side" | "down" | "up"; flip: boolean }[] = [
+  { sheet: "down", flip: false }, // Down
+  { sheet: "side", flip: true },  // Left
+  { sheet: "side", flip: false }, // Right
+  { sheet: "up",   flip: false }, // Up
 ];
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -105,27 +97,23 @@ function tryLoadImage(src: string): Promise<HTMLImageElement | null> {
 }
 
 /**
- * Build textures[direction][frame] from up to five sheet images.
- * Diagonal sheets fall back to front/back, then side.
+ * Build textures[direction][frame] from three sheet images (side, down, up).
+ * 4 cardinal directions, 4 frames each.
  */
 function buildDirectionTextures(
   sideImg: HTMLImageElement,
   downImg: HTMLImageElement | null,
-  upImg: HTMLImageElement | null,
-  downRightImg: HTMLImageElement | null = null,
-  upRightImg: HTMLImageElement | null = null
+  upImg: HTMLImageElement | null
 ): Texture[][] {
   const sheets: Record<string, HTMLImageElement> = {
     side: sideImg,
     down: downImg ?? sideImg,
     up: upImg ?? sideImg,
-    downright: downRightImg ?? downImg ?? sideImg,
-    upright: upRightImg ?? upImg ?? sideImg,
   };
 
   const textures: Texture[][] = [];
 
-  for (let dir = 0; dir < 8; dir++) {
+  for (let dir = 0; dir < 4; dir++) {
     const { sheet, flip } = DIR_CONFIG[dir];
     const img = sheets[sheet];
     const strip = extractFrames(img, RUN_FRAME_W, RUN_FRAME_H, WALK_FRAME_INDICES, flip);
@@ -144,10 +132,9 @@ function buildDirectionTextures(
 
 /**
  * Load character textures for a player class.
- * Returns textures[direction][frame] — 8 directions, 4 frames each.
+ * Returns textures[direction][frame] — 4 directions, 4 frames each.
  *
- * Loads up to 5 sprite sheets: Run.png (side), Run_Down.png (front),
- * Run_Up.png (back), Run_DownRight.png (diagonal front), Run_UpRight.png (diagonal back).
+ * Loads 3 sprite sheets: Run.png (side), Run_Down.png (front), Run_Up.png (back).
  * Falls back gracefully for any missing sheets.
  */
 export function createCharacterTextures(
@@ -157,13 +144,11 @@ export function createCharacterTextures(
   const base = `/assets/sprites/${classDir}`;
 
   return Promise.all([
-    loadImage(`${base}/Run.png`),              // side (required)
-    tryLoadImage(`${base}/Run_Down.png`),       // front (optional)
-    tryLoadImage(`${base}/Run_Up.png`),          // back (optional)
-    tryLoadImage(`${base}/Run_DownRight.png`),   // diagonal front (optional)
-    tryLoadImage(`${base}/Run_UpRight.png`),     // diagonal back (optional)
-  ]).then(([sideImg, downImg, upImg, downRightImg, upRightImg]) => {
-    return buildDirectionTextures(sideImg, downImg, upImg, downRightImg, upRightImg);
+    loadImage(`${base}/Run.png`),         // side (required)
+    tryLoadImage(`${base}/Run_Down.png`),  // front (optional)
+    tryLoadImage(`${base}/Run_Up.png`),    // back (optional)
+  ]).then(([sideImg, downImg, upImg]) => {
+    return buildDirectionTextures(sideImg, downImg, upImg);
   }).catch(() => {
     console.warn("[Shireland] Failed to load character sprites, using fallback");
     return createFallbackTextures();
@@ -172,7 +157,7 @@ export function createCharacterTextures(
 
 /**
  * Load equipment overlay textures for an item.
- * Returns textures[direction][frame] — same shape as character textures (8 directions).
+ * Returns textures[direction][frame] — same shape as character textures (4 directions).
  * Returns null if the equipment sprites don't exist.
  */
 export async function createEquipmentTextures(
@@ -184,10 +169,8 @@ export async function createEquipmentTextures(
 
     const downImg = await tryLoadImage(getEquipAssetPath(itemId, "down"));
     const upImg = await tryLoadImage(getEquipAssetPath(itemId, "up"));
-    const downRightImg = await tryLoadImage(getEquipAssetPath(itemId, "downright"));
-    const upRightImg = await tryLoadImage(getEquipAssetPath(itemId, "upright"));
 
-    return buildDirectionTextures(sideImg, downImg, upImg, downRightImg, upRightImg);
+    return buildDirectionTextures(sideImg, downImg, upImg);
   } catch {
     return null;
   }
@@ -221,10 +204,10 @@ export async function loadItemTexture(
 function createFallbackTextures(): Texture[][] {
   const canvas = document.createElement("canvas");
   canvas.width = CHAR_FRAME_W * WALK_FRAME_COUNT;
-  canvas.height = CHAR_FRAME_H * 8;
+  canvas.height = CHAR_FRAME_H * 4;
   const ctx = canvas.getContext("2d")!;
 
-  for (let dir = 0; dir < 8; dir++) {
+  for (let dir = 0; dir < 4; dir++) {
     for (let frame = 0; frame < WALK_FRAME_COUNT; frame++) {
       const ox = frame * CHAR_FRAME_W;
       const oy = dir * CHAR_FRAME_H;
@@ -237,7 +220,7 @@ function createFallbackTextures(): Texture[][] {
 
   const baseTexture = BaseTexture.from(canvas, { scaleMode: SCALE_MODES.NEAREST });
   const textures: Texture[][] = [];
-  for (let dir = 0; dir < 8; dir++) {
+  for (let dir = 0; dir < 4; dir++) {
     const frames: Texture[] = [];
     for (let frame = 0; frame < WALK_FRAME_COUNT; frame++) {
       frames.push(

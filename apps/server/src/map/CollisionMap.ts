@@ -8,6 +8,8 @@ export class CollisionMap {
   private data: number[];
   private dynamicBlockers = new Set<number>();
   private dynamicPassable = new Set<number>();
+  private spawnX: number | null = null;
+  private spawnY: number | null = null;
 
   constructor(mapPath: string) {
     const raw = readFileSync(resolve(mapPath), "utf-8");
@@ -18,6 +20,19 @@ export class CollisionMap {
 
     const collisionLayer = mapData.layers.find((l) => l.name === "collision");
     this.data = collisionLayer?.data ?? [];
+
+    // Look for a spawn_point object in object layers
+    for (const layer of mapData.layers) {
+      if (layer.type !== "objectgroup" || !layer.objects) continue;
+      const sp = layer.objects.find(
+        (o) => o.name === "spawn_point" && o.point,
+      );
+      if (sp) {
+        this.spawnX = Math.floor(sp.x / mapData.tilewidth);
+        this.spawnY = Math.floor(sp.y / mapData.tileheight);
+        break;
+      }
+    }
   }
 
   isPassable(x: number, y: number): boolean {
@@ -64,12 +79,12 @@ export class CollisionMap {
     return this.height;
   }
 
-  /** Find a passable tile near the center for spawning */
+  /** Find a passable tile near the spawn point (or center as fallback) */
   findSpawn(): { x: number; y: number } {
-    const cx = Math.floor(this.width / 2);
-    const cy = Math.floor(this.height / 2);
+    const cx = this.spawnX ?? Math.floor(this.width / 2);
+    const cy = this.spawnY ?? Math.floor(this.height / 2);
 
-    // Spiral outward from center
+    // Spiral outward from spawn point
     for (let r = 0; r < Math.max(this.width, this.height); r++) {
       for (let dx = -r; dx <= r; dx++) {
         for (let dy = -r; dy <= r; dy++) {

@@ -40,14 +40,12 @@ export function getAssetPath(itemId: string, asset: "icon" | "world"): string {
 
 export function getEquipAssetPath(
   itemId: string,
-  sheet: "side" | "down" | "up" | "downright" | "upright"
+  sheet: "side" | "down" | "up"
 ): string {
   const fileNames: Record<typeof sheet, string> = {
     side: "Run",
     down: "Run_Down",
     up: "Run_Up",
-    downright: "Run_DownRight",
-    upright: "Run_UpRight",
   };
   return `/assets/sprites/items/${itemId}/equip/${fileNames[sheet]}.png`;
 }

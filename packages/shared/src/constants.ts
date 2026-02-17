@@ -17,7 +17,7 @@ export const CHAT_MAX_LENGTH = 200;
 export const SERVER_PORT = 4000;
 
 export const SPRITE_FRAMES = 4;
-export const SPRITE_DIRECTIONS = 8;
+export const SPRITE_DIRECTIONS = 4;
 export const SPRITE_SHEET_SIZE = 64;
 
 export const ITEM_PICKUP_COOLDOWN_MS = 500;
@@ -32,12 +32,8 @@ export const ITEM_SPAWN_CONFIG: { itemId: string; count: number }[] = [
 export const INVENTORY_SLOTS = 16;
 
 export const DIR_DELTA: Record<Direction, { dx: number; dy: number }> = {
-  [Direction.Down]:      { dx:  0, dy:  1 },
-  [Direction.Left]:      { dx: -1, dy:  0 },
-  [Direction.Right]:     { dx:  1, dy:  0 },
-  [Direction.Up]:        { dx:  0, dy: -1 },
-  [Direction.DownLeft]:  { dx: -1, dy:  1 },
-  [Direction.DownRight]: { dx:  1, dy:  1 },
-  [Direction.UpLeft]:    { dx: -1, dy: -1 },
-  [Direction.UpRight]:   { dx:  1, dy: -1 },
+  [Direction.Down]:  { dx:  0, dy:  1 },
+  [Direction.Left]:  { dx: -1, dy:  0 },
+  [Direction.Right]: { dx:  1, dy:  0 },
+  [Direction.Up]:    { dx:  0, dy: -1 },
 };

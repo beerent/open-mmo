@@ -30,7 +30,7 @@ export class LoginScreen {
       <div class="login-box">
         <h1 class="login-title">SHIRELAND</h1>
         <p class="login-subtitle">A Retro JRPG MMO</p>
-        <button class="play-now-btn" id="play-now-btn">PLAY NOW</button>
+        <button class="play-now-btn" id="play-now-btn">PLAY AS GUEST</button>
         <div class="twitch-divider">
           <span>or sign in to keep your progress</span>
         </div>
@@ -66,7 +66,7 @@ export class LoginScreen {
       const result = await AuthClient.guest();
       if (!result.ok) {
         playNowBtn.disabled = false;
-        playNowBtn.textContent = "PLAY NOW";
+        playNowBtn.textContent = "PLAY AS GUEST";
         return;
       }
 

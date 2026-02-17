@@ -42,14 +42,26 @@ async function main() {
     console.log("[map-screenshot] Navigating to " + CLIENT_URL);
     await page.goto(CLIENT_URL, { waitUntil: "networkidle", timeout: TIMEOUT });
 
-    // Wait for the login screen to appear (created after map loads)
+    // Wait for the login screen to appear
     console.log("[map-screenshot] Waiting for login screen...");
     await page.waitForSelector("#login-screen", { state: "visible", timeout: TIMEOUT });
 
-    // Fill in name and join
-    console.log("[map-screenshot] Logging in as MapViewer...");
-    await page.fill("#player-name", "MapViewer");
-    await page.click("#join-btn");
+    // Click "Play Now" (guest login)
+    console.log("[map-screenshot] Logging in as guest...");
+    await page.click("#play-now-btn");
+
+    // Character creation screen — fill name and enter
+    console.log("[map-screenshot] Creating character...");
+    await page.waitForSelector("#player-name", { state: "visible", timeout: TIMEOUT }).catch(() => {});
+    const nameInput = await page.$("#player-name");
+    if (nameInput) {
+      await page.fill("#player-name", "MapViewer");
+      await page.click("#join-btn");
+    } else {
+      // Existing character — click Enter Shireland
+      const enterBtn = await page.$("#enter-btn");
+      if (enterBtn) await enterBtn.click();
+    }
 
     // Wait for login screen to disappear (game has loaded)
     await page.waitForSelector("#login-screen", {

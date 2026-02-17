@@ -167,11 +167,13 @@ export class TilemapRenderer {
       const sprite = new Sprite(tex);
       // Tiled object y is the BOTTOM of the object
       sprite.x = obj.x;
-      sprite.y = obj.y - obj.height;
-      sprite.width = obj.width;
-      sprite.height = obj.height;
-      // Store the object's bottom Y for depth sorting (in tile-space pixels)
-      (sprite as any).sortY = obj.y;
+      sprite.y = obj.y - (obj.height ?? 0);
+      sprite.width = obj.width ?? 0;
+      sprite.height = obj.height ?? 0;
+      // Sort by the object's ground-contact line, not its bottom pixel.
+      // For buildings, the bottom ~30% of the sprite is front-facing wall/steps
+      // that should render in front of characters at the same depth.
+      (sprite as any).sortY = obj.y - (obj.height ?? 0) * 0.3;
 
       this._objectSprites.push(sprite);
     }

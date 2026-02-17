@@ -5,10 +5,6 @@ export enum Direction {
   Left = 1,
   Right = 2,
   Up = 3,
-  DownLeft = 4,
-  DownRight = 5,
-  UpLeft = 6,
-  UpRight = 7,
 }
 
 export enum PlayerClass {
@@ -121,11 +117,13 @@ export interface TiledTileset {
 }
 
 export interface TiledObject {
-  gid: number;
+  gid?: number;
+  name?: string;
   x: number;
   y: number;
-  width: number;
-  height: number;
+  width?: number;
+  height?: number;
+  point?: boolean;
 }
 
 export interface TiledLayer {

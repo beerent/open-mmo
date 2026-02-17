@@ -1,9 +1,21 @@
 import { Direction } from "@shireland/shared";
 
+const DIRECTION_KEYS: Record<string, Direction> = {
+  ArrowUp: Direction.Up,
+  KeyW: Direction.Up,
+  ArrowDown: Direction.Down,
+  KeyS: Direction.Down,
+  ArrowLeft: Direction.Left,
+  KeyA: Direction.Left,
+  ArrowRight: Direction.Right,
+  KeyD: Direction.Right,
+};
+
 export class InputManager {
   private keys = new Set<string>();
   private justPressed = new Set<string>();
   private shiftCombos = new Set<string>();
+  private directionStack: string[] = [];
   private _chatFocused = false;
 
   constructor() {
@@ -14,16 +26,24 @@ export class InputManager {
         if (e.shiftKey) {
           this.shiftCombos.add(e.code);
         }
+        if (e.code in DIRECTION_KEYS) {
+          this.directionStack.push(e.code);
+        }
       }
       this.keys.add(e.code);
     });
     window.addEventListener("keyup", (e) => {
       this.keys.delete(e.code);
+      const idx = this.directionStack.indexOf(e.code);
+      if (idx !== -1) {
+        this.directionStack.splice(idx, 1);
+      }
     });
     // Clear keys on blur to prevent stuck keys
     window.addEventListener("blur", () => {
       this.keys.clear();
       this.justPressed.clear();
+      this.directionStack.length = 0;
     });
   }
 
@@ -32,6 +52,7 @@ export class InputManager {
     if (v) {
       this.keys.clear();
       this.justPressed.clear();
+      this.directionStack.length = 0;
     }
   }
 
@@ -40,23 +61,9 @@ export class InputManager {
   }
 
   getDirection(): Direction | null {
-    const up    = this.keys.has("ArrowUp")    || this.keys.has("KeyW");
-    const down  = this.keys.has("ArrowDown")  || this.keys.has("KeyS");
-    const left  = this.keys.has("ArrowLeft")  || this.keys.has("KeyA");
-    const right = this.keys.has("ArrowRight") || this.keys.has("KeyD");
-
-    const v = up && down ? null : up ? "up" : down ? "down" : null;
-    const h = left && right ? null : left ? "left" : right ? "right" : null;
-
-    if (v === "up"   && h === "left")  return Direction.UpLeft;
-    if (v === "up"   && h === "right") return Direction.UpRight;
-    if (v === "down" && h === "left")  return Direction.DownLeft;
-    if (v === "down" && h === "right") return Direction.DownRight;
-    if (v === "up")   return Direction.Up;
-    if (v === "down") return Direction.Down;
-    if (h === "left")  return Direction.Left;
-    if (h === "right") return Direction.Right;
-    return null;
+    if (this.directionStack.length === 0) return null;
+    const lastKey = this.directionStack[this.directionStack.length - 1];
+    return DIRECTION_KEYS[lastKey] ?? null;
   }
 
   isActionPressed(code: string): boolean {

@@ -55,13 +55,6 @@ export class LocalPlayer {
     const targetX = this.tileX + dx;
     const targetY = this.tileY + dy;
 
-    // Corner-cutting prevention: for diagonal moves, both adjacent cardinal tiles must be passable
-    if (dx !== 0 && dy !== 0) {
-      if (!this.isPassable(this.tileX + dx, this.tileY) ||
-          !this.isPassable(this.tileX, this.tileY + dy)) {
-        return false;
-      }
-    }
     if (!this.isPassable(targetX, targetY)) return false;
 
     this.moving = true;
