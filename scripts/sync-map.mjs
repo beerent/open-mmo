@@ -202,7 +202,10 @@ for (const [, firstgidStr, tsxRelPath] of tilesetRefs) {
   const columns = parseInt(colsMatch?.[1] ?? "0");
 
   // Skip unused tilesets
-  const maxGid = firstgid + tilecount;
+  // For collection tilesets, tilecount in header may be less than max tile id
+  const tileIds = [...tsx.matchAll(/<tile id="(\d+)"/g)].map((m) => parseInt(m[1]));
+  const maxTileId = tileIds.length > 0 ? Math.max(...tileIds) + 1 : tilecount;
+  const maxGid = firstgid + Math.max(tilecount, maxTileId);
   const isUsed = [...usedGids].some((g) => g >= firstgid && g < maxGid);
   if (!isUsed) {
     skipped++;
@@ -248,12 +251,16 @@ for (const [, firstgidStr, tsxRelPath] of tilesetRefs) {
   } else {
     // Collection tileset
     const tileMatches = [
-      ...tsx.matchAll(/<tile id="(\d+)">\s*<image width="(\d+)" height="(\d+)" source="([^"]+)"\/>/g),
+      ...tsx.matchAll(/<tile id="(\d+)">\s*<image ([^>]+)\/>/g),
     ];
     if (tileMatches.length === 0) { skipped++; continue; }
 
     const tiles = [];
-    for (const [, id, w, h, src] of tileMatches) {
+    for (const [, id, attrs] of tileMatches) {
+      const src = attrs.match(/source="([^"]+)"/)?.[1];
+      const w = attrs.match(/width="(\d+)"/)?.[1];
+      const h = attrs.match(/height="(\d+)"/)?.[1];
+      if (!src || !w || !h) continue;
       const tileGid = firstgid + parseInt(id);
       if (!usedGids.has(tileGid)) continue;
       const imgAbsPath = resolve(dirname(tsxPath), src);
