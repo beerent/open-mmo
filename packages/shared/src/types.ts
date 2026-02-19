@@ -114,16 +114,19 @@ export interface TiledTileset {
   tilecount: number;
   name: string;
   tiles?: TiledTileEntry[];
+  animations?: Record<number, { animX: number; animY: number; animCountX: number; animDivisor: number }>;
 }
 
 export interface TiledObject {
   gid?: number;
   name?: string;
+  type?: string;
   x: number;
   y: number;
   width?: number;
   height?: number;
   point?: boolean;
+  properties?: { name: string; type?: string; value: string | number | boolean }[];
 }
 
 export interface TiledLayer {
@@ -143,4 +146,32 @@ export interface TiledMap {
   tileheight: number;
   layers: TiledLayer[];
   tilesets: TiledTileset[];
+  npcs?: NpcDef[];
+  routes?: Record<string, NpcRouteWaypoint[]>;
+}
+
+// ── NPC Types ──────────────────────────────────────────────────────────────
+
+export interface NpcData {
+  id: string;
+  name: string;
+  npcType: string;
+  x: number;
+  y: number;
+  direction: Direction;
+}
+
+export interface NpcRouteWaypoint {
+  tileX: number;
+  tileY: number;
+}
+
+export interface NpcDef {
+  id: string;
+  name: string;
+  npcType: string;
+  route: string;
+  pauseChance?: number;
+  pauseMinMs?: number;
+  pauseMaxMs?: number;
 }

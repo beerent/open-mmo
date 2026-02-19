@@ -21,15 +21,17 @@ export class CollisionMap {
     const collisionLayer = mapData.layers.find((l) => l.name === "collision");
     this.data = collisionLayer?.data ?? [];
 
-    // Look for a spawn_point object in object layers
+    // Look for a spawn_point object in object layers (point or tile object)
     for (const layer of mapData.layers) {
       if (layer.type !== "objectgroup" || !layer.objects) continue;
       const sp = layer.objects.find(
-        (o) => o.name === "spawn_point" && o.point,
+        (o) => o.name === "spawn_point",
       );
       if (sp) {
+        // Tile objects have y at bottom of tile; point objects have y at the point
+        const pixelY = sp.gid ? sp.y - mapData.tileheight : sp.y;
         this.spawnX = Math.floor(sp.x / mapData.tilewidth);
-        this.spawnY = Math.floor(sp.y / mapData.tileheight);
+        this.spawnY = Math.floor(pixelY / mapData.tileheight);
         break;
       }
     }
@@ -77,6 +79,22 @@ export class CollisionMap {
 
   getHeight(): number {
     return this.height;
+  }
+
+  /** Find multiple passable tiles near a center point (for item scatter) */
+  findNearbyPassable(cx: number, cy: number, count: number): { x: number; y: number }[] {
+    const result: { x: number; y: number }[] = [];
+    for (let r = 0; r < Math.max(this.width, this.height) && result.length < count; r++) {
+      for (let dx = -r; dx <= r && result.length < count; dx++) {
+        for (let dy = -r; dy <= r && result.length < count; dy++) {
+          if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+          const x = cx + dx;
+          const y = cy + dy;
+          if (this.isPassable(x, y)) result.push({ x, y });
+        }
+      }
+    }
+    return result;
   }
 
   /** Find a passable tile near the spawn point (or center as fallback) */

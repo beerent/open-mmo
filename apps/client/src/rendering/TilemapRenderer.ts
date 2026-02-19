@@ -1,7 +1,14 @@
 import { Container, BaseTexture, Texture, Rectangle, Sprite, SCALE_MODES } from "pixi.js";
 import { CompositeTilemap } from "@pixi/tilemap";
-import { TILE_SIZE, DISPLAY_SCALE } from "@shireland/shared";
+import { TILE_SIZE } from "@shireland/shared";
 import type { TiledMap, TiledTileset, TiledLayer } from "@shireland/shared";
+
+interface TileAnimData {
+  animX: number;
+  animY: number;
+  animCountX: number;
+  animDivisor: number;
+}
 
 interface LoadedTileset {
   firstgid: number;
@@ -18,21 +25,32 @@ export class TilemapRenderer {
   readonly mapWidth: number;
   readonly mapHeight: number;
   readonly collisionData: number[];
+  private sandData: number[];
+  private groundLayers: number[][];
 
   private layers: CompositeTilemap[] = [];
   private overlayLayer: CompositeTilemap;
   private loadedTilesets: LoadedTileset[] = [];
   private allTextures = new Map<number, Texture>();
+  private tileAnimations = new Map<number, TileAnimData>(); // gid -> animation
+  private animTime = 0;
   private _objectSprites: Sprite[] = [];
 
   private constructor(mapData: TiledMap) {
     this.container = new Container();
-    this.container.scale.set(DISPLAY_SCALE);
     this.mapWidth = mapData.width;
     this.mapHeight = mapData.height;
 
     const collisionLayer = mapData.layers.find((l) => l.name === "collision");
     this.collisionData = collisionLayer?.data ?? [];
+
+    const sandLayer = mapData.layers.find((l) => l.name === "sand");
+    this.sandData = sandLayer?.data ?? [];
+
+    // Collect ground layers so we can tell when grass covers sand
+    this.groundLayers = mapData.layers
+      .filter((l) => l.name === "ground" && l.data)
+      .map((l) => l.data!);
 
     this.overlayLayer = new CompositeTilemap();
   }
@@ -106,6 +124,13 @@ export class TilemapRenderer {
       for (const [gid, tex] of textures) {
         this.allTextures.set(gid, tex);
       }
+
+      // Index animation data by GID
+      if (ts.animations) {
+        for (const [localIdStr, anim] of Object.entries(ts.animations)) {
+          this.tileAnimations.set(ts.firstgid + parseInt(localIdStr), anim);
+        }
+      }
     } catch {
       console.warn(`[Shireland] Failed to load tileset: ${ts.image}`);
     }
@@ -140,6 +165,7 @@ export class TilemapRenderer {
 
   private buildTileLayer(layer: TiledLayer, mapWidth: number) {
     const tilemap = new CompositeTilemap();
+    tilemap.tileAnim = [0, 0];
 
     for (let i = 0; i < layer.data!.length; i++) {
       const gid = layer.data![i];
@@ -150,7 +176,19 @@ export class TilemapRenderer {
 
       const col = i % mapWidth;
       const row = Math.floor(i / mapWidth);
-      tilemap.tile(tex, col * TILE_SIZE, row * TILE_SIZE);
+
+      // Tiled anchors oversized tiles at the cell's bottom; adjust y so
+      // the tile's bottom aligns with the bottom of the grid cell.
+      const yOffset = tex.height - TILE_SIZE;
+      const px = col * TILE_SIZE;
+      const py = row * TILE_SIZE - yOffset;
+
+      const anim = this.tileAnimations.get(gid);
+      if (anim) {
+        tilemap.tile(tex, px, py, anim);
+      } else {
+        tilemap.tile(tex, px, py);
+      }
     }
 
     this.layers.push(tilemap);
@@ -184,6 +222,15 @@ export class TilemapRenderer {
     return this._objectSprites;
   }
 
+  /** Advance tile animation clock — call each frame with dt in ms */
+  updateAnimations(dt: number): void {
+    this.animTime += dt;
+    for (const layer of this.layers) {
+      layer.tileAnim[0] = this.animTime;
+      layer.tileAnim[1] = this.animTime;
+    }
+  }
+
   getOverlayLayer(): CompositeTilemap {
     return this.overlayLayer;
   }
@@ -196,11 +243,22 @@ export class TilemapRenderer {
     return this.collisionData[idx] === 0;
   }
 
+  isSandTile(tileX: number, tileY: number): boolean {
+    if (tileX < 0 || tileX >= this.mapWidth || tileY < 0 || tileY >= this.mapHeight) return false;
+    const idx = tileY * this.mapWidth + tileX;
+    if (this.sandData[idx] === 0) return false;
+    // Sand is only visible if no ground layer paints over it
+    for (const gnd of this.groundLayers) {
+      if (gnd[idx] !== 0) return false;
+    }
+    return true;
+  }
+
   getPixelWidth(): number {
-    return this.mapWidth * TILE_SIZE * DISPLAY_SCALE;
+    return this.mapWidth * TILE_SIZE;
   }
 
   getPixelHeight(): number {
-    return this.mapHeight * TILE_SIZE * DISPLAY_SCALE;
+    return this.mapHeight * TILE_SIZE;
   }
 }

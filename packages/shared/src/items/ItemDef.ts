@@ -37,6 +37,8 @@ export interface ItemDef {
   description: string;
   category: ItemCategory;
   rarity: Rarity;
-  maxStack: number;
+  inventoryStackMax: number;
+  worldStackMax: number;
   traits: ItemTraits;
+  friendlyName: string;
 }

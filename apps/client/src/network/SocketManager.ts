@@ -7,6 +7,7 @@ import type {
   WorldItem,
   InventorySlot,
   EquipmentLoadout,
+  NpcData,
 } from "@shireland/shared";
 
 type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -24,6 +25,9 @@ export class SocketManager {
   onItemPickedUp?: (data: { itemId: string; playerId: string }) => void;
   onInventoryUpdate?: (inventory: InventorySlot[]) => void;
   onEquipmentChanged?: (data: { id: string; equipment: EquipmentLoadout }) => void;
+  onItemsDropped?: (data: { items: WorldItem[]; fromX: number; fromY: number }) => void;
+  onNpcSnapshot?: (npcs: NpcData[]) => void;
+  onNpcMoved?: (data: { id: string; x: number; y: number; direction: number; debug?: string }) => void;
   onAuthError?: (message: string) => void;
 
   constructor() {
@@ -73,6 +77,18 @@ export class SocketManager {
       this.onEquipmentChanged?.(data);
     });
 
+    this.socket.on("items:dropped", (data) => {
+      this.onItemsDropped?.(data);
+    });
+
+    this.socket.on("npc:snapshot", ({ npcs }) => {
+      this.onNpcSnapshot?.(npcs);
+    });
+
+    this.socket.on("npc:moved", (data) => {
+      this.onNpcMoved?.(data);
+    });
+
     this.socket.on("auth:error", ({ message }) => {
       this.onAuthError?.(message);
     });
@@ -108,6 +124,10 @@ export class SocketManager {
 
   sendUnequip(slot: string) {
     this.socket.emit("equipment:unequip", { slot });
+  }
+
+  sendDrop(slotIndex: number) {
+    this.socket.emit("item:drop", { slotIndex });
   }
 
   disconnect() {

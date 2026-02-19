@@ -5,7 +5,7 @@ import { loadItemTexture } from "./SpriteGenerator";
 
 export class ItemRenderer {
   readonly container = new Container();
-  private items = new Map<string, { sprite: Sprite; x: number; y: number }>();
+  private items = new Map<string, { sprite: Sprite; x: number; y: number; itemId: string }>();
   private textureCache = new Map<string, Texture>();
   private fallbackTexture: Texture;
 
@@ -61,7 +61,7 @@ export class ItemRenderer {
     sprite.y = item.y * TILE_SIZE + TILE_SIZE / 2;
 
     this.container.addChild(sprite);
-    this.items.set(item.id, { sprite, x: item.x, y: item.y });
+    this.items.set(item.id, { sprite, x: item.x, y: item.y, itemId: item.itemId });
   }
 
   removeItem(id: string): void {
@@ -77,5 +77,59 @@ export class ItemRenderer {
       if (entry.x === tileX && entry.y === tileY) return id;
     }
     return null;
+  }
+
+  getDefIdByInstanceId(instanceId: string): string | null {
+    return this.items.get(instanceId)?.itemId ?? null;
+  }
+
+  getItemDefIdAtTile(tileX: number, tileY: number): string | null {
+    for (const [, entry] of this.items) {
+      if (entry.x === tileX && entry.y === tileY) return entry.itemId;
+    }
+    return null;
+  }
+
+  async addItemAnimated(item: WorldItem, fromX: number, fromY: number): Promise<void> {
+    if (this.items.has(item.id)) return;
+
+    const texture = await this.getTexture(item.itemId);
+    const sprite = new Sprite(texture);
+    sprite.anchor.set(0.5);
+    sprite.scale.set(1.5);
+
+    // Start at the "from" tile (player position)
+    const startX = fromX * TILE_SIZE + TILE_SIZE / 2;
+    const startY = fromY * TILE_SIZE + TILE_SIZE / 2;
+    const endX = item.x * TILE_SIZE + TILE_SIZE / 2;
+    const endY = item.y * TILE_SIZE + TILE_SIZE / 2;
+
+    sprite.x = startX;
+    sprite.y = startY;
+
+    this.container.addChild(sprite);
+    this.items.set(item.id, { sprite, x: item.x, y: item.y, itemId: item.itemId });
+
+    // Toss animation: 300ms ease-out with sine arc
+    const duration = 300;
+    const startTime = performance.now();
+
+    const animate = () => {
+      const elapsed = performance.now() - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      const ease = 1 - (1 - t) * (1 - t); // ease-out quadratic
+
+      sprite.x = startX + (endX - startX) * ease;
+      sprite.y = startY + (endY - startY) * ease - Math.sin(t * Math.PI) * 8;
+
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        sprite.x = endX;
+        sprite.y = endY;
+      }
+    };
+
+    requestAnimationFrame(animate);
   }
 }

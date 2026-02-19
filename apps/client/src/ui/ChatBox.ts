@@ -6,19 +6,22 @@ export class ChatBox {
   private input: HTMLInputElement;
   private onSend: (text: string) => void;
   private onFocusChange: (focused: boolean) => void;
+  private chatOpenCodes: string[];
 
   constructor(
     onSend: (text: string) => void,
-    onFocusChange: (focused: boolean) => void
+    onFocusChange: (focused: boolean) => void,
+    chatOpenCodes: string[] = ["KeyT"]
   ) {
     this.onSend = onSend;
     this.onFocusChange = onFocusChange;
+    this.chatOpenCodes = chatOpenCodes;
 
     this.container = document.createElement("div");
     this.container.id = "chat-box";
     this.container.innerHTML = `
       <div class="chat-messages" id="chat-messages"></div>
-      <input type="text" class="chat-input" id="chat-input" placeholder="Press T or Enter to chat..." maxlength="200" autocomplete="off" />
+      <input type="text" class="chat-input" id="chat-input" placeholder="Press Enter to chat..." maxlength="200" autocomplete="off" />
     `;
 
     this.addStyles();
@@ -107,9 +110,9 @@ export class ChatBox {
   }
 
   private bindEvents() {
-    // Enter or T to focus
+    // Enter or chat key to focus
     window.addEventListener("keydown", (e) => {
-      if ((e.key === "Enter" || e.key === "t" || e.key === "T") && document.activeElement !== this.input) {
+      if ((e.key === "Enter" || this.chatOpenCodes.includes(e.code)) && document.activeElement !== this.input) {
         e.preventDefault();
         this.input.focus();
         this.onFocusChange(true);
@@ -164,6 +167,10 @@ export class ChatBox {
     div.textContent = text;
     this.messages.appendChild(div);
     this.messages.scrollTop = this.messages.scrollHeight;
+  }
+
+  updateChatOpenCodes(codes: string[]) {
+    this.chatOpenCodes = codes;
   }
 
   private escapeHtml(str: string): string {

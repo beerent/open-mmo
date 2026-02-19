@@ -1,13 +1,16 @@
-import { Application, Container } from "pixi.js";
-import { DISPLAY_SCALE, TILE_SIZE, Direction } from "@shireland/shared";
+import { Application, Container, RenderTexture, Sprite, SCALE_MODES } from "pixi.js";
+import { DISPLAY_SCALE, TILE_SIZE, Direction, ITEM_REGISTRY } from "@shireland/shared";
 import type { TiledMap, PlayerData } from "@shireland/shared";
 import { TilemapRenderer } from "./rendering/TilemapRenderer";
+import { FootprintRenderer } from "./rendering/FootprintRenderer";
 import { ItemRenderer } from "./rendering/ItemRenderer";
 import { Camera } from "./rendering/Camera";
 import { ChatBubble } from "./rendering/ChatBubble";
 import { InputManager } from "./input/InputManager";
+import { loadBindings, getCodesForAction, Action } from "./input/KeyBindings";
 import { LocalPlayer } from "./entities/LocalPlayer";
 import { RemotePlayer } from "./entities/RemotePlayer";
+import { NpcEntity } from "./entities/NpcEntity";
 import { SocketManager } from "./network/SocketManager";
 import { Interpolation } from "./network/Interpolation";
 import { ChatBox } from "./ui/ChatBox";
@@ -15,6 +18,9 @@ import { HUD } from "./ui/HUD";
 import { ClaimModal } from "./ui/ClaimModal";
 import { InventoryPanel } from "./ui/InventoryPanel";
 import { NotificationToast } from "./ui/NotificationToast";
+import { ItemTooltip } from "./ui/ItemTooltip";
+import { ContextMenu } from "./ui/ContextMenu";
+import { SettingsPanel } from "./ui/SettingsPanel";
 import { DebugOverlay } from "./rendering/DebugOverlay";
 
 export class Game {
@@ -23,6 +29,7 @@ export class Game {
   readonly playerContainer: Container;
 
   private tilemapRenderer!: TilemapRenderer;
+  private footprintRenderer!: FootprintRenderer;
   private itemRenderer!: ItemRenderer;
   private camera!: Camera;
   private inputManager!: InputManager;
@@ -34,11 +41,17 @@ export class Game {
   private claimModal!: ClaimModal;
   private inventoryPanel!: InventoryPanel;
   private notificationToast!: NotificationToast;
+  private itemTooltip!: ItemTooltip;
+  private contextMenu!: ContextMenu;
+  private settingsPanel!: SettingsPanel;
   private isGuest = false;
   private debugOverlay!: DebugOverlay;
   private remotePlayers = new Map<string, RemotePlayer>();
+  private npcs = new Map<string, NpcEntity>();
+  private npcTileKeys = new Set<string>();
   private chatBubbles = new Map<string, ChatBubble>();
-
+  private renderTexture!: RenderTexture;
+  private outputSprite!: Sprite;
   private moveSeq = 0;
   private joined = false;
 
@@ -46,8 +59,6 @@ export class Game {
     this.app = app;
     this.worldContainer = new Container();
     this.playerContainer = new Container();
-    this.playerContainer.scale.set(DISPLAY_SCALE);
-    this.app.stage.addChild(this.worldContainer);
   }
 
   async loadMap(mapUrl: string) {
@@ -58,11 +69,14 @@ export class Game {
 
     // Item renderer (between tilemap and players)
     this.itemRenderer = new ItemRenderer();
-    this.itemRenderer.container.scale.set(DISPLAY_SCALE);
 
-    // Layer order: ground tiles, items, entities (objects+players y-sorted), overlay
+    // Footprints (between items and players)
+    this.footprintRenderer = new FootprintRenderer();
+
+    // Layer order: ground tiles, items, footprints, entities (objects+players y-sorted), overlay
     this.worldContainer.addChild(this.tilemapRenderer.container);
     this.worldContainer.addChild(this.itemRenderer.container);
+    this.worldContainer.addChild(this.footprintRenderer.container);
     this.worldContainer.addChild(this.playerContainer);
 
     // Add object sprites (buildings, trees, etc.) into the player container for y-sorting
@@ -73,26 +87,42 @@ export class Game {
     const overlay = this.tilemapRenderer.getOverlayLayer();
     this.worldContainer.addChild(overlay);
 
-    // Debug overlay (toggle with Shift+D)
+    // Debug overlay (toggle with P)
     this.debugOverlay = new DebugOverlay(
       this.tilemapRenderer.collisionData,
       this.tilemapRenderer.mapWidth,
-      this.tilemapRenderer.mapHeight
+      this.tilemapRenderer.mapHeight,
+      mapData.routes ?? {}
     );
     this.worldContainer.addChild(this.debugOverlay.container);
 
+    // Pixel-perfect rendering: render world at 1x into a RenderTexture,
+    // then display it scaled up. This prevents tile seams from non-integer scaling.
+    const viewW = Math.ceil(this.app.screen.width / DISPLAY_SCALE);
+    const viewH = Math.ceil(this.app.screen.height / DISPLAY_SCALE);
+    this.renderTexture = RenderTexture.create({
+      width: viewW,
+      height: viewH,
+      scaleMode: SCALE_MODES.NEAREST,
+      resolution: 1,
+    });
+    this.outputSprite = new Sprite(this.renderTexture);
+    this.outputSprite.scale.set(DISPLAY_SCALE);
+    this.app.stage.addChild(this.outputSprite);
+
     this.camera = new Camera(
       this.worldContainer,
-      this.app.screen.width,
-      this.app.screen.height,
+      viewW,
+      viewH,
       this.tilemapRenderer.getPixelWidth(),
       this.tilemapRenderer.getPixelHeight()
     );
 
     window.addEventListener("resize", () => {
-      this.camera.resize(this.app.screen.width, this.app.screen.height);
+      this.resizeViewport();
     });
 
+    loadBindings();
     this.inputManager = new InputManager();
     this.interpolation = new Interpolation(this.remotePlayers);
 
@@ -103,7 +133,8 @@ export class Game {
     // Chat
     this.chatBox = new ChatBox(
       (text) => this.socketManager.sendChat(text),
-      (focused) => { this.inputManager.chatFocused = focused; }
+      (focused) => { this.inputManager.chatFocused = focused; },
+      getCodesForAction(Action.Chat)
     );
 
     // HUD
@@ -127,6 +158,45 @@ export class Game {
     // Inventory & notifications
     this.inventoryPanel = new InventoryPanel();
     this.notificationToast = new NotificationToast();
+    this.itemTooltip = new ItemTooltip();
+    this.contextMenu = new ContextMenu();
+
+    // Settings panel (Escape key)
+    this.settingsPanel = new SettingsPanel();
+    this.settingsPanel.onBindingsChanged = () => {
+      this.inputManager.rebuildLookups();
+      this.chatBox.updateChatOpenCodes(getCodesForAction(Action.Chat));
+    };
+    this.settingsPanel.onToggle = (open) => {
+      this.inputManager.paused = open;
+    };
+
+    // Item hover tooltip: track mouse over canvas → tile lookup
+    const canvas = this.app.view as HTMLCanvasElement;
+    canvas.addEventListener("mousemove", (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const cssX = e.clientX - rect.left;
+      const cssY = e.clientY - rect.top;
+
+      // CSS pixel → 1x viewport pixel → world pixel → tile
+      const vpX = cssX / DISPLAY_SCALE;
+      const vpY = cssY / DISPLAY_SCALE;
+      const worldX = vpX - this.worldContainer.x;
+      const worldY = vpY - this.worldContainer.y;
+      const tileX = Math.floor(worldX / TILE_SIZE);
+      const tileY = Math.floor(worldY / TILE_SIZE);
+
+      const defId = this.itemRenderer.getItemDefIdAtTile(tileX, tileY);
+      const def = defId ? ITEM_REGISTRY[defId] : null;
+      if (def) {
+        this.itemTooltip.show(def.friendlyName, e.clientX, e.clientY);
+      } else {
+        this.itemTooltip.hide();
+      }
+    });
+    canvas.addEventListener("mouseleave", () => {
+      this.itemTooltip.hide();
+    });
 
     // Wire inventory equip/unequip actions
     this.inventoryPanel.onEquip = (slotIndex) => {
@@ -136,6 +206,18 @@ export class Game {
       this.socketManager.sendUnequip(slot);
     };
 
+    // Right-click context menu on inventory slots
+    this.inventoryPanel.onContextMenu = (slotIndex, event) => {
+      this.contextMenu.show(event.clientX, event.clientY, [
+        {
+          label: "Drop",
+          action: () => {
+            this.socketManager.sendDrop(slotIndex);
+          },
+        },
+      ]);
+    };
+
     // Game loop
     let lastTime = performance.now();
     this.app.ticker.add(() => {
@@ -143,6 +225,12 @@ export class Game {
       const dt = now - lastTime;
       lastTime = now;
       this.update(dt);
+
+      // Render world at 1x into the off-screen texture
+      this.app.renderer.render(this.worldContainer, {
+        renderTexture: this.renderTexture,
+        clear: true,
+      });
     });
 
     console.log(`[Shireland] Map loaded: ${mapData.width}x${mapData.height} tiles`);
@@ -157,6 +245,13 @@ export class Game {
     this.hud.setGuestMode(isGuest);
   }
 
+  private resizeViewport() {
+    const viewW = Math.ceil(this.app.screen.width / DISPLAY_SCALE);
+    const viewH = Math.ceil(this.app.screen.height / DISPLAY_SCALE);
+    this.renderTexture.resize(viewW, viewH);
+    this.camera.resize(viewW, viewH);
+  }
+
   private setupNetworkHandlers() {
     this.socketManager.onSnapshot = async (players: PlayerData[]) => {
       const myId = this.socketManager.id;
@@ -167,7 +262,8 @@ export class Game {
             p.x,
             p.y,
             p.playerClass,
-            (x: number, y: number) => this.tilemapRenderer.isPassable(x, y)
+            (x: number, y: number) =>
+              this.tilemapRenderer.isPassable(x, y) && !this.npcTileKeys.has(`${x},${y}`)
           );
           this.localPlayer.onMoveStart = (dir) => {
             this.socketManager.sendMove(dir, Date.now(), ++this.moveSeq);
@@ -216,7 +312,12 @@ export class Game {
 
       const remote = this.remotePlayers.get(data.id);
       if (remote) {
+        const fromX = remote.getTileX();
+        const fromY = remote.getTileY();
         remote.moveTo(data.x, data.y, data.direction as Direction);
+        if (this.tilemapRenderer.isSandTile(fromX, fromY)) {
+          this.footprintRenderer.spawn(fromX, fromY, data.direction as Direction);
+        }
       }
     };
 
@@ -251,16 +352,26 @@ export class Game {
     };
 
     this.socketManager.onItemPickedUp = ({ itemId, playerId }) => {
+      const defId = this.itemRenderer.getDefIdByInstanceId(itemId);
       this.itemRenderer.removeItem(itemId);
       if (playerId === this.socketManager.id) {
-        // We don't know the defId from just itemId here, so use a generic message
-        // The inventory update will follow with the actual item details
-        this.notificationToast.show("Picked up an item!");
+        const def = defId ? ITEM_REGISTRY[defId] : null;
+        const name = def?.friendlyName ?? "item";
+        const article = /^[aeiou]/i.test(name) ? "an" : "a";
+        this.notificationToast.show(`Picked up ${article} ${name}!`);
       }
     };
 
     this.socketManager.onInventoryUpdate = (inventory) => {
       this.inventoryPanel.update(inventory);
+    };
+
+    this.socketManager.onItemsDropped = ({ items, fromX, fromY }) => {
+      items.forEach((item, i) => {
+        setTimeout(() => {
+          this.itemRenderer.addItemAnimated(item, fromX, fromY);
+        }, i * 50);
+      });
     };
 
     this.socketManager.onEquipmentChanged = ({ id, equipment }) => {
@@ -275,6 +386,37 @@ export class Game {
         const remote = this.remotePlayers.get(id);
         if (remote) {
           remote.applyEquipment(equipment);
+        }
+      }
+    };
+
+    this.socketManager.onNpcSnapshot = async (npcs) => {
+      for (const npcData of npcs) {
+        if (this.npcs.has(npcData.id)) continue;
+        const entity = await NpcEntity.create(npcData);
+        this.npcs.set(npcData.id, entity);
+        this.playerContainer.addChild(entity.sprite);
+        this.npcTileKeys.add(`${npcData.x},${npcData.y}`);
+      }
+    };
+
+    this.socketManager.onNpcMoved = (data) => {
+      const npc = this.npcs.get(data.id);
+      if (npc) {
+        const fromX = npc.getTileX();
+        const fromY = npc.getTileY();
+        // Update NPC collision tiles
+        this.npcTileKeys.delete(`${fromX},${fromY}`);
+        this.npcTileKeys.add(`${data.x},${data.y}`);
+        npc.moveTo(data.x, data.y, data.direction as Direction);
+        if (data.debug) {
+          npc.setDebug(data.debug);
+          if (this.debugOverlay.isVisible()) {
+            console.log(`[NPC:${npc.name}] ${data.debug}`);
+          }
+        }
+        if (this.tilemapRenderer?.isSandTile(fromX, fromY)) {
+          this.footprintRenderer?.spawn(fromX, fromY, data.direction as Direction);
         }
       }
     };
@@ -302,6 +444,10 @@ export class Game {
   }
 
   private update(dt: number) {
+    // Animate tiles even before joining
+    this.tilemapRenderer.updateAnimations(dt);
+    this.footprintRenderer.update(dt);
+
     if (!this.joined || !this.localPlayer) return;
 
     // Update player first so a finishing move frees input on the same frame
@@ -311,10 +457,21 @@ export class Game {
     if (!this.localPlayer.isMoving()) {
       const dir = this.inputManager.getDirection();
       if (dir !== null) {
-        this.localPlayer.tryMove(dir);
+        const fromX = this.localPlayer.tileX;
+        const fromY = this.localPlayer.tileY;
+        if (this.localPlayer.tryMove(dir)) {
+          if (this.tilemapRenderer.isSandTile(fromX, fromY)) {
+            this.footprintRenderer.spawn(fromX, fromY, dir);
+          }
+        }
       }
     }
     this.interpolation.update(dt);
+
+    // Update NPCs
+    for (const npc of this.npcs.values()) {
+      npc.update(dt);
+    }
 
     // Update chat bubbles
     for (const [id, bubble] of this.chatBubbles) {
@@ -338,7 +495,7 @@ export class Game {
     );
 
     // Action keys
-    if (this.inputManager.isActionPressed("KeyE")) {
+    if (this.inputManager.isActionPressed(Action.Pickup)) {
       const itemId = this.itemRenderer.getItemAtTile(
         this.localPlayer.tileX,
         this.localPlayer.tileY
@@ -348,18 +505,23 @@ export class Game {
       }
     }
 
-    if (this.inputManager.isActionPressed("KeyI")) {
+    if (this.inputManager.isActionPressed(Action.Inventory)) {
       this.inventoryPanel.toggle();
     }
 
-    if (this.inputManager.isActionPressed("KeyP")) {
+    if (this.inputManager.isActionPressed(Action.Debug)) {
       this.debugOverlay.toggle();
+      const debugOn = this.debugOverlay.isVisible();
+      for (const npc of this.npcs.values()) {
+        npc.setDebugVisible(debugOn);
+      }
     }
 
     this.inputManager.clearActions();
 
     // Debug
     this.debugOverlay.updatePlayerPos(this.localPlayer.tileX, this.localPlayer.tileY);
+    this.debugOverlay.updateStats(dt, this.remotePlayers.size + 1);
 
     // HUD
     this.hud.updateCoords(this.localPlayer.tileX, this.localPlayer.tileY);

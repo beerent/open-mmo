@@ -48,8 +48,12 @@ export class LocalPlayer {
   tryMove(direction: Direction): boolean {
     if (this.moving) return false;
 
-    this.direction = direction;
-    this.renderer.setDirection(direction);
+    // Turn-in-place: if facing a different direction, just rotate without moving
+    if (this.direction !== direction) {
+      this.direction = direction;
+      this.renderer.setDirection(direction);
+      return false;
+    }
 
     const { dx, dy } = DIR_DELTA[direction];
     const targetX = this.tileX + dx;

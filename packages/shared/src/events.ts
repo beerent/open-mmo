@@ -5,6 +5,7 @@ import type {
   WorldItem,
   InventorySlot,
   EquipmentLoadout,
+  NpcData,
 } from "./types.js";
 
 export interface ClientToServerEvents {
@@ -18,6 +19,7 @@ export interface ClientToServerEvents {
   "item:pickup": (data: { itemId: string }) => void;
   "equipment:equip": (data: { slotIndex: number }) => void;
   "equipment:unequip": (data: { slot: string }) => void;
+  "item:drop": (data: { slotIndex: number }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -39,6 +41,9 @@ export interface ServerToClientEvents {
     id: string;
     equipment: EquipmentLoadout;
   }) => void;
+  "items:dropped": (data: { items: WorldItem[]; fromX: number; fromY: number }) => void;
+  "npc:snapshot": (data: { npcs: (NpcData & { debug?: string })[] }) => void;
+  "npc:moved": (data: { id: string; x: number; y: number; direction: number; debug?: string }) => void;
   "auth:error": (data: { message: string }) => void;
   "auth:character": (data: {
     characterId: number;

@@ -140,7 +140,9 @@ function buildDirectionTextures(
 export function createCharacterTextures(
   playerClass: string
 ): Promise<Texture[][]> {
-  const classDir = playerClass === "wizard" ? "wizard" : "warrior";
+  const classDir = playerClass.startsWith("npcs/")
+    ? playerClass
+    : playerClass === "wizard" ? "wizard" : "warrior";
   const base = `/assets/sprites/${classDir}`;
 
   return Promise.all([

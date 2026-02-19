@@ -3,10 +3,11 @@ import { createServer } from "http";
 import { Server as SocketServer } from "socket.io";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import type { ClientToServerEvents, ServerToClientEvents } from "@shireland/shared";
-import { ITEM_SPAWN_CONFIG } from "@shireland/shared";
+import type { ClientToServerEvents, ServerToClientEvents, TiledMap } from "@shireland/shared";
+import { ITEM_SPAWN_CONFIG, TICK_MS } from "@shireland/shared";
 import { runMigrations, ItemInstanceDao, pool } from "@shireland/database";
 import { GameState } from "./state/GameState.js";
 import { ItemState } from "./state/ItemState.js";
@@ -16,6 +17,7 @@ import { MovementHandler } from "./handlers/MovementHandler.js";
 import { ChatHandler } from "./handlers/ChatHandler.js";
 import { ItemHandler } from "./handlers/ItemHandler.js";
 import { GameLoop } from "./GameLoop.js";
+import { NpcManager } from "./npc/NpcManager.js";
 import { PersistenceManager } from "./state/PersistenceManager.js";
 import { authRouter } from "./routes/auth.js";
 import { socketAuthMiddleware } from "./middleware/socketAuth.js";
@@ -44,9 +46,18 @@ export class ShirelandServer {
     // Socket auth middleware
     this.io.use(socketAuthMiddleware as any);
 
-    // Load map collision data
+    // Load map data
     const mapPath = resolve(__dirname, "../../client/public/assets/maps/town.json");
     const collisionMap = new CollisionMap(mapPath);
+
+    // Parse NPC/route data from the same map JSON
+    const mapJson: TiledMap = JSON.parse(readFileSync(mapPath, "utf-8"));
+    const npcManager = new NpcManager(
+      mapJson.npcs ?? [],
+      mapJson.routes ?? {},
+      this.io,
+      collisionMap
+    );
 
     this.gameState = new GameState();
     const itemState = new ItemState();
@@ -58,13 +69,14 @@ export class ShirelandServer {
     const connectionHandler = new ConnectionHandler(this.io, this.gameState, collisionMap, itemState);
     const movementHandler = new MovementHandler(this.io, this.gameState, collisionMap);
     const chatHandler = new ChatHandler(this.io, this.gameState);
-    const itemHandler = new ItemHandler(this.io, this.gameState, itemState);
+    const itemHandler = new ItemHandler(this.io, this.gameState, itemState, collisionMap);
 
     this.io.on("connection", (socket) => {
       connectionHandler.handle(socket);
       movementHandler.handle(socket);
       chatHandler.handle(socket);
       itemHandler.handle(socket);
+      npcManager.onConnection(socket);
     });
 
     // Auth routes
@@ -84,7 +96,7 @@ export class ShirelandServer {
 
     // Game loop
     this.gameLoop = new GameLoop(() => {
-      // Future: tick-based updates (NPC AI, regen, etc.)
+      npcManager.tick(TICK_MS);
     });
 
     // Start: run migrations, seed world items, listen

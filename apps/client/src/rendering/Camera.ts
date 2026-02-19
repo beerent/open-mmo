@@ -1,58 +1,58 @@
 import { Container } from "pixi.js";
-import { DISPLAY_SCALE, TILE_SIZE } from "@shireland/shared";
+import { TILE_SIZE } from "@shireland/shared";
 
 export class Camera {
   private worldContainer: Container;
-  private screenWidth: number;
-  private screenHeight: number;
+  private viewWidth: number;
+  private viewHeight: number;
   private mapPixelWidth: number;
   private mapPixelHeight: number;
 
   constructor(
     worldContainer: Container,
-    screenWidth: number,
-    screenHeight: number,
+    viewWidth: number,
+    viewHeight: number,
     mapPixelWidth: number,
     mapPixelHeight: number
   ) {
     this.worldContainer = worldContainer;
-    this.screenWidth = screenWidth;
-    this.screenHeight = screenHeight;
+    this.viewWidth = viewWidth;
+    this.viewHeight = viewHeight;
     this.mapPixelWidth = mapPixelWidth;
     this.mapPixelHeight = mapPixelHeight;
   }
 
-  resize(screenWidth: number, screenHeight: number) {
-    this.screenWidth = screenWidth;
-    this.screenHeight = screenHeight;
+  resize(viewWidth: number, viewHeight: number) {
+    this.viewWidth = viewWidth;
+    this.viewHeight = viewHeight;
   }
 
   /** Follow a target at tile coordinates (tileX, tileY) */
   follow(tileX: number, tileY: number) {
-    // Convert tile coords to scaled pixel coords (center of tile)
-    const targetPixelX = (tileX + 0.5) * TILE_SIZE * DISPLAY_SCALE;
-    const targetPixelY = (tileY + 0.5) * TILE_SIZE * DISPLAY_SCALE;
+    // Convert tile coords to 1x pixel coords (center of tile)
+    const targetPixelX = (tileX + 0.5) * TILE_SIZE;
+    const targetPixelY = (tileY + 0.5) * TILE_SIZE;
 
-    // Camera position = center target on screen
-    let camX = this.screenWidth / 2 - targetPixelX;
-    let camY = this.screenHeight / 2 - targetPixelY;
+    // Camera position = center target in viewport
+    let camX = this.viewWidth / 2 - targetPixelX;
+    let camY = this.viewHeight / 2 - targetPixelY;
 
     // Clamp to map bounds
     const maxX = 0;
     const maxY = 0;
-    const minX = this.screenWidth - this.mapPixelWidth;
-    const minY = this.screenHeight - this.mapPixelHeight;
+    const minX = this.viewWidth - this.mapPixelWidth;
+    const minY = this.viewHeight - this.mapPixelHeight;
 
-    if (this.mapPixelWidth > this.screenWidth) {
+    if (this.mapPixelWidth > this.viewWidth) {
       camX = Math.max(minX, Math.min(maxX, camX));
     } else {
-      camX = (this.screenWidth - this.mapPixelWidth) / 2;
+      camX = (this.viewWidth - this.mapPixelWidth) / 2;
     }
 
-    if (this.mapPixelHeight > this.screenHeight) {
+    if (this.mapPixelHeight > this.viewHeight) {
       camY = Math.max(minY, Math.min(maxY, camY));
     } else {
-      camY = (this.screenHeight - this.mapPixelHeight) / 2;
+      camY = (this.viewHeight - this.mapPixelHeight) / 2;
     }
 
     this.worldContainer.x = Math.round(camX);

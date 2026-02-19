@@ -154,9 +154,9 @@ export class ItemState {
     if (!def) return false;
 
     // For stackable items, try to merge into existing stack
-    if (def.maxStack > 1) {
+    if (def.inventoryStackMax > 1) {
       const existing = this.findInventoryItem(characterId, inst.defId);
-      if (existing && existing.count < def.maxStack) {
+      if (existing && existing.count < def.inventoryStackMax) {
         existing.count += inst.count;
         this.instances.delete(instanceId);
         return true;
@@ -169,6 +169,42 @@ export class ItemState {
 
     inst.location = { type: "inventory", ownerId: characterId, slotIndex };
     return true;
+  }
+
+  drop(
+    characterId: number,
+    slotIndex: number,
+    tiles: { x: number; y: number }[]
+  ): { defId: string; items: ItemInstance[] } | null {
+    const inst = this.findInstanceAtSlot(characterId, slotIndex);
+    if (!inst || tiles.length === 0) return null;
+
+    const def = getItemDef(inst.defId);
+    if (!def) return null;
+
+    const defId = inst.defId;
+    const totalCount = inst.count;
+    const chunkSize = def.worldStackMax;
+
+    // Remove inventory item
+    this.instances.delete(inst.instanceId);
+
+    // Split into world items
+    const newItems: ItemInstance[] = [];
+    let remaining = totalCount;
+    let tileIdx = 0;
+
+    while (remaining > 0) {
+      const count = Math.min(remaining, chunkSize);
+      const tile = tiles[tileIdx % tiles.length];
+      const newInst = this.addToWorld(defId, tile.x, tile.y);
+      newInst.count = count;
+      newItems.push(newInst);
+      remaining -= count;
+      tileIdx++;
+    }
+
+    return { defId, items: newItems };
   }
 
   getInventory(characterId: number): InventorySlot[] {

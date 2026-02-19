@@ -21,6 +21,7 @@ export const SPRITE_DIRECTIONS = 4;
 export const SPRITE_SHEET_SIZE = 64;
 
 export const ITEM_PICKUP_COOLDOWN_MS = 500;
+export const ITEM_DROP_COOLDOWN_MS = 500;
 export const NOTIFICATION_DURATION_MS = 3000;
 export const MARBLE_SPAWN_COUNT = 8;
 
@@ -30,6 +31,11 @@ export const ITEM_SPAWN_CONFIG: { itemId: string; count: number }[] = [
 ];
 
 export const INVENTORY_SLOTS = 16;
+
+export const NPC_MOVE_DURATION_MS = 400;
+export const NPC_DEFAULT_PAUSE_CHANCE = 0.3;
+export const NPC_DEFAULT_PAUSE_MIN_MS = 1000;
+export const NPC_DEFAULT_PAUSE_MAX_MS = 4000;
 
 export const DIR_DELTA: Record<Direction, { dx: number; dy: number }> = {
   [Direction.Down]:  { dx:  0, dy:  1 },

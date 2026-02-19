@@ -22,6 +22,7 @@ export class InventoryPanel {
 
   onEquip?: (slotIndex: number) => void;
   onUnequip?: (slot: string) => void;
+  onContextMenu?: (slotIndex: number, event: MouseEvent) => void;
 
   constructor() {
     this.container = document.createElement("div");
@@ -286,7 +287,7 @@ export class InventoryPanel {
         const equipHint = equippable ? `<br><span style="color:#1eff00;font-size:9px">Click to equip</span>` : "";
 
         html += `
-          <div class="inv-slot filled${equipClass}" ${equippable ? `data-equip="${i}"` : ""}>
+          <div class="inv-slot filled${equipClass}" data-slot="${i}" ${equippable ? `data-equip="${i}"` : ""}>
             <img class="inv-slot-icon" src="${iconPath}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" />
             <div class="inv-slot-icon-fallback" style="display:none"></div>
             ${item.count > 1 ? `<span class="inv-slot-count">${item.count}</span>` : ""}
@@ -306,6 +307,15 @@ export class InventoryPanel {
       el.addEventListener("click", () => {
         const slotIndex = parseInt((el as HTMLElement).dataset.equip!, 10);
         this.onEquip?.(slotIndex);
+      });
+    });
+
+    // Bind right-click context menu on filled slots
+    this.gridEl.querySelectorAll("[data-slot]").forEach((el) => {
+      el.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        const slotIndex = parseInt((el as HTMLElement).dataset.slot!, 10);
+        this.onContextMenu?.(slotIndex, e as MouseEvent);
       });
     });
   }
