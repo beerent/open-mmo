@@ -267,6 +267,19 @@ export class Game {
   private setupNetworkHandlers() {
     this.socketManager.onSnapshot = async (players: PlayerData[]) => {
       const myId = this.socketManager.id;
+      const isReconnect = this.joined;
+
+      // Clear stale remote players (handles reconnect after laptop lid close etc.)
+      for (const [id, remote] of this.remotePlayers) {
+        this.playerContainer.removeChild(remote.sprite);
+        this.removeBubble(id);
+      }
+      this.remotePlayers.clear();
+
+      // Remove old local player sprite if reconnecting
+      if (isReconnect && this.localPlayer) {
+        this.playerContainer.removeChild(this.localPlayer.sprite);
+      }
 
       for (const p of players) {
         if (p.id === myId) {
@@ -293,7 +306,11 @@ export class Game {
         }
       }
       this.joined = true;
-      this.chatBox.addSystemMessage("Welcome to Shireland!");
+      if (isReconnect) {
+        this.chatBox.addSystemMessage("Reconnected!");
+      } else {
+        this.chatBox.addSystemMessage("Welcome to Shireland!");
+      }
     };
 
     this.socketManager.onPlayerJoined = async (player: PlayerData) => {
