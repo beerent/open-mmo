@@ -6,12 +6,14 @@
  *   2. Guard     — Gold/red armor, helmet
  *   3. Elder     — White beard, dark blue robes
  *   4. Villager  — Green tunic, brown pants
+ *   5. Captain   — Navy coat, gold trim, captain's hat, dark beard
  *
  * Also creates recolored side-view (Run.png) sprites from the existing NPC references:
  *   Merchant ← Rogue recolored
  *   Guard    ← Knight recolored
  *   Elder    ← Wizzard recolored
  *   Villager ← Rogue recolored
+ *   Captain  ← Knight recolored
  *
  * Output: assets/sprites/npcs/{type}/Run.png, Run_Down.png, Run_Up.png
  *         /tmp/npc-preview.png
@@ -111,6 +113,24 @@ await page.evaluate(async () => {
       bootMain: [140, 100, 60],    // brown pants/boots
       bootDark: [90, 60, 30],
       hasBeard: false,
+      hasApron: false,
+      hasHat: true,
+    },
+    captain: {
+      name: 'captain',
+      // Rich blue coat, gold accents, captain's hat — ship captain
+      helmet: null,
+      headColor: SKIN_MAIN,
+      hatMain: [55, 75, 140],       // rich blue captain's hat
+      hatDark: [35, 50, 100],
+      torsoLight: [80, 110, 180],   // bright navy coat
+      torsoMid: [60, 85, 150],
+      torsoDark: [40, 60, 110],
+      bootMain: [90, 70, 50],       // brown leather boots
+      bootDark: [60, 45, 30],
+      beardColor: [130, 100, 70],   // medium brown beard
+      beardDark: [85, 60, 40],
+      hasBeard: true,
       hasApron: false,
       hasHat: true,
     },
@@ -461,10 +481,21 @@ await page.evaluate(async () => {
   recolorSideSprite('villager-side', rogue, villagerSideMap);
   generateFrontSprite('villager-down', bodyDown, NPC_DEFS.villager);
   generateBackSprite('villager-up', bodyUp, NPC_DEFS.villager);
+
+  // --- CAPTAIN (navy/gold) - side from Knight recolor ---
+  const captainSideMap = [
+    [KNIGHT_COLORS.armorLight, [100, 135, 200]],   // bright blue coat light
+    [KNIGHT_COLORS.armorMid, [80, 110, 180]],       // rich blue coat mid
+    [KNIGHT_COLORS.armorDark, [55, 80, 140]],       // blue coat dark
+    [KNIGHT_COLORS.armorVDark, [35, 55, 100]],      // blue very dark
+  ];
+  recolorSideSprite('captain-side', knight, captainSideMap);
+  generateFrontSprite('captain-down', bodyDown, NPC_DEFS.captain);
+  generateBackSprite('captain-up', bodyUp, NPC_DEFS.captain);
 });
 
 // Save all NPC sprites
-const npcs = ['merchant', 'guard', 'elder', 'villager'];
+const npcs = ['merchant', 'guard', 'elder', 'villager', 'captain'];
 for (const npc of npcs) {
   const dir = `apps/client/public/assets/sprites/npcs/${npc}`;
   mkdirSync(dir, { recursive: true });

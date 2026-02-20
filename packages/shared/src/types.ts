@@ -85,6 +85,14 @@ export interface ItemInstance {
   location: ItemLocationUnion;
 }
 
+export interface QuestData {
+  questId: string;
+  name: string;
+  description: string;
+  reward: string;
+  status: "not_started" | "in_progress" | "completed";
+}
+
 // Keep ItemType for backward compat during transition (used by asset scripts)
 export enum ItemType {
   Marble = "marble",
@@ -159,6 +167,7 @@ export interface NpcData {
   x: number;
   y: number;
   direction: Direction;
+  hasDialog: boolean;
 }
 
 export interface NpcRouteWaypoint {
@@ -171,6 +180,7 @@ export interface NpcDef {
   name: string;
   npcType: string;
   route: string;
+  dialogKey?: string;
   pauseChance?: number;
   pauseMinMs?: number;
   pauseMaxMs?: number;

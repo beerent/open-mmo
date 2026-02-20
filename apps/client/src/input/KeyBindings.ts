@@ -7,6 +7,7 @@ export const Action = {
   Inventory: "inventory",
   Debug: "debug",
   Chat: "chat",
+  QuestLog: "quest_log",
 } as const;
 export type Action = (typeof Action)[keyof typeof Action];
 
@@ -23,6 +24,7 @@ const DEFAULT_BINDINGS: KeyMap = {
   inventory: ["KeyI"],
   debug: ["KeyP"],
   chat: ["KeyT"],
+  quest_log: ["KeyQ"],
 };
 
 let bindings: KeyMap = structuredClone(DEFAULT_BINDINGS);

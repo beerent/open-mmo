@@ -50,23 +50,28 @@ export class ShirelandServer {
     const mapPath = resolve(__dirname, "../../client/public/assets/maps/town.json");
     const collisionMap = new CollisionMap(mapPath);
 
+    this.gameState = new GameState();
+    const itemState = new ItemState();
+
     // Parse NPC/route data from the same map JSON
     const mapJson: TiledMap = JSON.parse(readFileSync(mapPath, "utf-8"));
     const npcManager = new NpcManager(
       mapJson.npcs ?? [],
       mapJson.routes ?? {},
       this.io,
-      collisionMap
+      collisionMap,
+      (x, y) => this.gameState.getAllPlayers().some((p) => p.x === x && p.y === y),
+      (socketId) => {
+        const p = this.gameState.getPlayer(socketId);
+        return p ? { characterId: p.characterId } : undefined;
+      }
     );
-
-    this.gameState = new GameState();
-    const itemState = new ItemState();
 
     // Persistence manager (dirty-flag write-back)
     this.persistenceManager = new PersistenceManager(this.gameState, itemState);
 
     // Handlers
-    const connectionHandler = new ConnectionHandler(this.io, this.gameState, collisionMap, itemState);
+    const connectionHandler = new ConnectionHandler(this.io, this.gameState, collisionMap, itemState, npcManager);
     const movementHandler = new MovementHandler(this.io, this.gameState, collisionMap);
     const chatHandler = new ChatHandler(this.io, this.gameState);
     const itemHandler = new ItemHandler(this.io, this.gameState, itemState, collisionMap);

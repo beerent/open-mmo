@@ -6,6 +6,7 @@ import type {
   InventorySlot,
   EquipmentLoadout,
   NpcData,
+  QuestData,
 } from "./types.js";
 
 export interface ClientToServerEvents {
@@ -20,6 +21,8 @@ export interface ClientToServerEvents {
   "equipment:equip": (data: { slotIndex: number }) => void;
   "equipment:unequip": (data: { slot: string }) => void;
   "item:drop": (data: { slotIndex: number }) => void;
+  "npc:talk": (data: { npcId: string }) => void;
+  "npc:debug-request": () => void;
 }
 
 export interface ServerToClientEvents {
@@ -44,6 +47,10 @@ export interface ServerToClientEvents {
   "items:dropped": (data: { items: WorldItem[]; fromX: number; fromY: number }) => void;
   "npc:snapshot": (data: { npcs: (NpcData & { debug?: string })[] }) => void;
   "npc:moved": (data: { id: string; x: number; y: number; direction: number; debug?: string }) => void;
+  "npc:chat": (data: { id: string; text: string; isResponse?: boolean }) => void;
+  "quest:update": (data: { quests: QuestData[] }) => void;
+  "quest:snapshot": (data: { quests: QuestData[] }) => void;
+  "npc:debug": (data: { states: { npcId: string; dialogKey: string; state: string; questStatus?: string }[] }) => void;
   "auth:error": (data: { message: string }) => void;
   "auth:character": (data: {
     characterId: number;

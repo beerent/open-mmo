@@ -1,5 +1,5 @@
 import { Application, Container, RenderTexture, Sprite, SCALE_MODES } from "pixi.js";
-import { DISPLAY_SCALE, TILE_SIZE, Direction, ITEM_REGISTRY } from "@shireland/shared";
+import { DISPLAY_SCALE, TILE_SIZE, Direction, DIR_DELTA, ITEM_REGISTRY, NPC_CHAT_BUBBLE_DURATION_MS, NPC_USER_DIALOG_DURATION_MS } from "@shireland/shared";
 import type { TiledMap, PlayerData } from "@shireland/shared";
 import { TilemapRenderer } from "./rendering/TilemapRenderer";
 import { FootprintRenderer } from "./rendering/FootprintRenderer";
@@ -7,7 +7,7 @@ import { ItemRenderer } from "./rendering/ItemRenderer";
 import { Camera } from "./rendering/Camera";
 import { ChatBubble } from "./rendering/ChatBubble";
 import { InputManager } from "./input/InputManager";
-import { loadBindings, getCodesForAction, Action } from "./input/KeyBindings";
+import { loadBindings, getCodesForAction, getPrimaryKeyLabel, Action } from "./input/KeyBindings";
 import { LocalPlayer } from "./entities/LocalPlayer";
 import { RemotePlayer } from "./entities/RemotePlayer";
 import { NpcEntity } from "./entities/NpcEntity";
@@ -17,7 +17,9 @@ import { ChatBox } from "./ui/ChatBox";
 import { HUD } from "./ui/HUD";
 import { ClaimModal } from "./ui/ClaimModal";
 import { InventoryPanel } from "./ui/InventoryPanel";
+import { QuestLog } from "./ui/QuestLog";
 import { NotificationToast } from "./ui/NotificationToast";
+import { ActionPrompt } from "./ui/ActionPrompt";
 import { ItemTooltip } from "./ui/ItemTooltip";
 import { ContextMenu } from "./ui/ContextMenu";
 import { SettingsPanel } from "./ui/SettingsPanel";
@@ -40,7 +42,9 @@ export class Game {
   private hud!: HUD;
   private claimModal!: ClaimModal;
   private inventoryPanel!: InventoryPanel;
+  private questLog!: QuestLog;
   private notificationToast!: NotificationToast;
+  private actionPrompt!: ActionPrompt;
   private itemTooltip!: ItemTooltip;
   private contextMenu!: ContextMenu;
   private settingsPanel!: SettingsPanel;
@@ -50,6 +54,8 @@ export class Game {
   private npcs = new Map<string, NpcEntity>();
   private npcTileKeys = new Set<string>();
   private chatBubbles = new Map<string, ChatBubble>();
+  private suppressedNpcChat = new Set<string>();
+  private uiOverlay!: Container;
   private renderTexture!: RenderTexture;
   private outputSprite!: Sprite;
   private moveSeq = 0;
@@ -110,6 +116,10 @@ export class Game {
     this.outputSprite.scale.set(DISPLAY_SCALE);
     this.app.stage.addChild(this.outputSprite);
 
+    // Screen-space text overlay — renders at native resolution, on top of pixel art
+    this.uiOverlay = new Container();
+    this.app.stage.addChild(this.uiOverlay);
+
     this.camera = new Camera(
       this.worldContainer,
       viewW,
@@ -155,9 +165,11 @@ export class Game {
       this.claimModal.show();
     };
 
-    // Inventory & notifications
+    // Inventory, quest log & notifications
     this.inventoryPanel = new InventoryPanel();
+    this.questLog = new QuestLog();
     this.notificationToast = new NotificationToast();
+    this.actionPrompt = new ActionPrompt();
     this.itemTooltip = new ItemTooltip();
     this.contextMenu = new ContextMenu();
 
@@ -324,24 +336,11 @@ export class Game {
     this.socketManager.onChatMessage = (msg) => {
       this.chatBox.addMessage(msg);
 
-      // Show bubble above the player
       const playerId = msg.senderId;
       this.removeBubble(playerId);
 
       const bubble = new ChatBubble(msg.text);
-
-      // Attach to remote player or local player
-      if (playerId === this.socketManager.id) {
-        if (this.localPlayer) {
-          this.localPlayer.sprite.addChild(bubble.container);
-        }
-      } else {
-        const remote = this.remotePlayers.get(playerId);
-        if (remote) {
-          remote.sprite.addChild(bubble.container);
-        }
-      }
-
+      this.uiOverlay.addChild(bubble.container);
       this.chatBubbles.set(playerId, bubble);
     };
 
@@ -421,6 +420,50 @@ export class Game {
       }
     };
 
+    this.socketManager.onNpcChat = ({ id, text, isResponse }) => {
+      const npc = this.npcs.get(id);
+      if (!npc) return;
+      // isResponse = direct reply to this player's talk → always show (and clear suppression)
+      // Otherwise it's ambient chat → respect suppression
+      if (isResponse) {
+        this.suppressedNpcChat.delete(id);
+        this.removeBubble(id);
+        const bubble = new ChatBubble(text, NPC_USER_DIALOG_DURATION_MS);
+        this.uiOverlay.addChild(bubble.container);
+        this.chatBubbles.set(id, bubble);
+      } else {
+        if (this.suppressedNpcChat.has(id)) return;
+        this.removeBubble(id);
+        const bubble = new ChatBubble(text, NPC_CHAT_BUBBLE_DURATION_MS);
+        this.uiOverlay.addChild(bubble.container);
+        this.chatBubbles.set(id, bubble);
+      }
+    };
+
+    this.socketManager.onNpcDebug = (states) => {
+      for (const info of states) {
+        const npc = this.npcs.get(info.npcId);
+        if (!npc) continue;
+        let label = `[${info.dialogKey}]\nstate: ${info.state}`;
+        if (info.questStatus) {
+          label += `\nquest: ${info.questStatus}`;
+        }
+        npc.setDebug(label);
+      }
+    };
+
+    this.socketManager.onQuestUpdate = (quests) => {
+      this.questLog.update(quests);
+      // Refresh NPC debug labels if debug overlay is active
+      if (this.debugOverlay.isVisible()) {
+        this.socketManager.sendNpcDebugRequest();
+      }
+    };
+
+    this.socketManager.onQuestSnapshot = (quests) => {
+      this.questLog.update(quests);
+    };
+
     this.socketManager.onAuthError = (message) => {
       console.error("[Shireland] Auth error:", message);
       alert(message);
@@ -436,11 +479,22 @@ export class Game {
     }
   }
 
+
   private async addRemotePlayer(data: PlayerData) {
     if (this.remotePlayers.has(data.id)) return;
     const remote = await RemotePlayer.create(data);
     this.remotePlayers.set(data.id, remote);
     this.playerContainer.addChild(remote.sprite);
+  }
+
+  private findFacingNpc(px: number, py: number, dir: Direction): NpcEntity | null {
+    const delta = DIR_DELTA[dir];
+    const tx = px + delta.dx;
+    const ty = py + delta.dy;
+    for (const npc of this.npcs.values()) {
+      if (npc.hasDialog && npc.getTileX() === tx && npc.getTileY() === ty) return npc;
+    }
+    return null;
   }
 
   private update(dt: number) {
@@ -473,8 +527,47 @@ export class Game {
       npc.update(dt);
     }
 
-    // Update chat bubbles
+    // Contextual action prompt
+    const camX = this.worldContainer.x;
+    const camY = this.worldContainer.y;
+
+    if (this.localPlayer.isMoving() || this.inputManager.paused || this.inputManager.chatFocused) {
+      this.actionPrompt.hide();
+    } else {
+      const px = this.localPlayer.tileX;
+      const py = this.localPlayer.tileY;
+      const dir = this.localPlayer.direction;
+
+      const facingNpc = this.findFacingNpc(px, py, dir);
+      const itemOnTile = this.itemRenderer.getItemDefIdAtTile(px, py);
+
+      if (facingNpc) {
+        const sprite = facingNpc.sprite;
+        const screenX = (sprite.x + TILE_SIZE / 2 + camX) * DISPLAY_SCALE;
+        const screenY = (sprite.y + camY) * DISPLAY_SCALE + 6;
+        this.actionPrompt.show(getPrimaryKeyLabel(Action.Pickup), "Talk", screenX, screenY);
+      } else if (itemOnTile) {
+        const screenX = (px * TILE_SIZE + TILE_SIZE / 2 + camX) * DISPLAY_SCALE;
+        const screenY = (py * TILE_SIZE + camY) * DISPLAY_SCALE + 6;
+        this.actionPrompt.show(getPrimaryKeyLabel(Action.Pickup), "Pick up", screenX, screenY);
+      } else {
+        this.actionPrompt.hide();
+      }
+    }
+
+    // Position screen-space chat bubbles
+
     for (const [id, bubble] of this.chatBubbles) {
+      let sprite: Container | undefined;
+      if (id === this.socketManager.id) {
+        sprite = this.localPlayer?.sprite;
+      } else {
+        sprite = this.npcs.get(id)?.sprite ?? this.remotePlayers.get(id)?.sprite;
+      }
+      if (sprite) {
+        bubble.container.x = (sprite.x + TILE_SIZE / 2 + camX) * DISPLAY_SCALE;
+        bubble.container.y = (sprite.y + camY) * DISPLAY_SCALE - 42;
+      }
       if (bubble.update(dt)) {
         bubble.container.parent?.removeChild(bubble.container);
         this.chatBubbles.delete(id);
@@ -496,12 +589,27 @@ export class Game {
 
     // Action keys
     if (this.inputManager.isActionPressed(Action.Pickup)) {
-      const itemId = this.itemRenderer.getItemAtTile(
+      const facingNpcForAction = this.findFacingNpc(
         this.localPlayer.tileX,
-        this.localPlayer.tileY
+        this.localPlayer.tileY,
+        this.localPlayer.direction
       );
-      if (itemId) {
-        this.socketManager.sendPickup(itemId);
+      if (facingNpcForAction) {
+        // Suppress ambient chat while waiting for server response
+        this.suppressedNpcChat.add(facingNpcForAction.id);
+        setTimeout(() => {
+          this.suppressedNpcChat.delete(facingNpcForAction.id);
+        }, NPC_USER_DIALOG_DURATION_MS);
+
+        this.socketManager.sendNpcTalk(facingNpcForAction.id);
+      } else {
+        const itemId = this.itemRenderer.getItemAtTile(
+          this.localPlayer.tileX,
+          this.localPlayer.tileY
+        );
+        if (itemId) {
+          this.socketManager.sendPickup(itemId);
+        }
       }
     }
 
@@ -509,11 +617,18 @@ export class Game {
       this.inventoryPanel.toggle();
     }
 
+    if (this.inputManager.isActionPressed(Action.QuestLog)) {
+      this.questLog.toggle();
+    }
+
     if (this.inputManager.isActionPressed(Action.Debug)) {
       this.debugOverlay.toggle();
       const debugOn = this.debugOverlay.isVisible();
       for (const npc of this.npcs.values()) {
         npc.setDebugVisible(debugOn);
+      }
+      if (debugOn) {
+        this.socketManager.sendNpcDebugRequest();
       }
     }
 

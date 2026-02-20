@@ -1,5 +1,5 @@
 import { Container, Text } from "pixi.js";
-import { TILE_SIZE, CHAT_BUBBLE_DURATION_MS } from "@shireland/shared";
+import { CHAT_BUBBLE_DURATION_MS } from "@shireland/shared";
 
 export class ChatBubble {
   readonly container: Container;
@@ -13,17 +13,16 @@ export class ChatBubble {
     this.container = new Container();
 
     this.text = new Text(message.slice(0, 40), {
-      fontSize: 10,
+      fontFamily: "Arial, Helvetica, sans-serif",
+      fontSize: 13,
       fill: 0xffffff,
       stroke: 0x000000,
-      strokeThickness: 2,
+      strokeThickness: 3,
       align: "center",
       wordWrap: true,
-      wordWrapWidth: 120,
+      wordWrapWidth: 160,
     });
     this.text.anchor.set(0.5, 1);
-    this.text.x = TILE_SIZE / 2;
-    this.text.y = -24;
 
     this.container.addChild(this.text);
   }

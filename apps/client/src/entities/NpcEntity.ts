@@ -6,6 +6,8 @@ import { PlayerRenderer } from "../rendering/PlayerRenderer";
 export class NpcEntity {
   readonly sprite: Container;
   readonly id: string;
+  readonly npcType!: string;
+  readonly hasDialog!: boolean;
   name: string;
 
   private renderer: PlayerRenderer;
@@ -24,7 +26,9 @@ export class NpcEntity {
 
   private constructor(data: NpcData & { debug?: string }, renderer: PlayerRenderer) {
     this.id = data.id;
+    this.npcType = data.npcType;
     this.name = data.name;
+    this.hasDialog = data.hasDialog;
     this.tileX = data.x;
     this.tileY = data.y;
 
@@ -38,19 +42,6 @@ export class NpcEntity {
     this.renderer.setPosition(data.x, data.y);
 
     this.sprite = this.renderer.container;
-
-    // Name tag
-    const nameTag = new Text(data.name, {
-      fontSize: 7,
-      fill: 0xffffff,
-      stroke: 0x000000,
-      strokeThickness: 1,
-      align: "center",
-    });
-    nameTag.anchor.set(0.5, 1);
-    nameTag.x = TILE_SIZE / 2;
-    nameTag.y = -20;
-    this.sprite.addChild(nameTag);
 
     // Debug text (hidden by default)
     this.debugText = new Text("", {

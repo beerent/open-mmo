@@ -6,6 +6,7 @@ import { GameState } from "../state/GameState.js";
 import { PlayerState } from "../state/PlayerState.js";
 import { CollisionMap } from "../map/CollisionMap.js";
 import { ItemState } from "../state/ItemState.js";
+import type { NpcManager } from "../npc/NpcManager.js";
 import type { SocketData } from "../middleware/socketAuth.js";
 
 type TypedServer = Server<ClientToServerEvents, ServerToClientEvents>;
@@ -25,7 +26,8 @@ export class ConnectionHandler {
     private io: TypedServer,
     private gameState: GameState,
     private collisionMap: CollisionMap,
-    private itemState: ItemState
+    private itemState: ItemState,
+    private npcManager: NpcManager
   ) {}
 
   handle(socket: TypedSocket) {
@@ -77,6 +79,8 @@ export class ConnectionHandler {
           socket.emit("inventory:update", { inventory: this.itemState.getInventory(player.characterId) });
           socket.broadcast.emit("player:joined", player.toData());
 
+          this.npcManager.emitQuestSnapshot(socket, player.characterId);
+
           console.log(
             `[Shireland] ${player.name} reconnected (grace) — ${this.gameState.getPlayerCount()} online`
           );
@@ -126,6 +130,8 @@ export class ConnectionHandler {
         socket.emit("items:snapshot", { items: this.itemState.getWorldItems() });
         socket.emit("inventory:update", { inventory: this.itemState.getInventory(character.id) });
         socket.broadcast.emit("player:joined", player.toData());
+
+        this.npcManager.emitQuestSnapshot(socket, character.id);
 
         console.log(
           `[Shireland] ${character.name} (${character.player_class}) joined at (${character.x}, ${character.y}) — ${this.gameState.getPlayerCount()} online`

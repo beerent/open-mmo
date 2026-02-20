@@ -1,5 +1,5 @@
-import { Container, Text } from "pixi.js";
-import { Direction, TILE_SIZE, MOVE_DURATION_MS } from "@shireland/shared";
+import { Container } from "pixi.js";
+import { Direction, MOVE_DURATION_MS } from "@shireland/shared";
 import type { PlayerData, EquipmentLoadout } from "@shireland/shared";
 import { PlayerRenderer } from "../rendering/PlayerRenderer";
 
@@ -37,19 +37,6 @@ export class RemotePlayer {
     this.renderer.setPosition(data.x, data.y);
 
     this.sprite = this.renderer.container;
-
-    // Name tag
-    const nameTag = new Text(data.name, {
-      fontSize: 7,
-      fill: 0xffffff,
-      stroke: 0x000000,
-      strokeThickness: 1,
-      align: "center",
-    });
-    nameTag.anchor.set(0.5, 1);
-    nameTag.x = TILE_SIZE / 2;
-    nameTag.y = -20;
-    this.sprite.addChild(nameTag);
 
     // Apply initial equipment
     if (data.equipment) {

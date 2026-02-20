@@ -32,6 +32,8 @@ export const ITEM_SPAWN_CONFIG: { itemId: string; count: number }[] = [
 
 export const INVENTORY_SLOTS = 16;
 
+export const NPC_CHAT_BUBBLE_DURATION_MS = 4000;
+export const NPC_USER_DIALOG_DURATION_MS = 4000;
 export const NPC_MOVE_DURATION_MS = 400;
 export const NPC_DEFAULT_PAUSE_CHANCE = 0.3;
 export const NPC_DEFAULT_PAUSE_MIN_MS = 1000;

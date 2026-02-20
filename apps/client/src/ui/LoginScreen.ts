@@ -248,38 +248,69 @@ export class LoginScreen {
     style.textContent = `
       @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
+      @keyframes rpg-panel-open {
+        from { transform: scale(0.95); opacity: 0.7; }
+        to { transform: scale(1); opacity: 1; }
+      }
+
       #login-screen {
         position: fixed;
         top: 0; left: 0; right: 0; bottom: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(0, 0, 0, 0.85);
+        background: rgba(10, 6, 4, 0.92);
         z-index: 1000;
         font-family: 'Press Start 2P', monospace;
       }
 
       .login-box {
-        background: #1a1a2e;
-        border: 3px solid #e6b422;
+        border: 3px solid #4a3520;
+        outline: 2px solid #0a0604;
+        box-shadow:
+          inset 1px 1px 0 0 #8a7040,
+          inset -1px -1px 0 0 #201008,
+          inset 0 0 10px rgba(0,0,0,0.4),
+          0 0 0 3px rgba(10,6,4,0.5),
+          0 6px 24px rgba(0,0,0,0.7);
+        background:
+          repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px),
+          repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px),
+          linear-gradient(170deg, #3a2a1a 0%, #2e1e10 40%, #241608 100%);
         padding: 32px;
         text-align: center;
         max-width: 400px;
         width: 90%;
         image-rendering: pixelated;
+        position: relative;
+        animation: rpg-panel-open 0.2s ease-out;
+      }
+      .login-box::before {
+        content: '';
+        position: absolute;
+        inset: -5px;
+        pointer-events: none;
+        z-index: 10;
+        background:
+          radial-gradient(circle 3px at center, #ddb840, #906810 60%, transparent 70%) no-repeat 0 0 / 8px 8px,
+          radial-gradient(circle 3px at center, #ddb840, #906810 60%, transparent 70%) no-repeat 100% 0 / 8px 8px,
+          radial-gradient(circle 3px at center, #ddb840, #906810 60%, transparent 70%) no-repeat 0 100% / 8px 8px,
+          radial-gradient(circle 3px at center, #ddb840, #906810 60%, transparent 70%) no-repeat 100% 100% / 8px 8px;
       }
 
       .login-title {
-        color: #e6b422;
+        color: #c8a84e;
         font-size: 24px;
         margin: 0 0 8px 0;
-        text-shadow: 2px 2px 0 #000;
+        text-shadow: 2px 2px 0 #000, 0 0 16px rgba(200,168,78,0.4);
+        letter-spacing: 3px;
       }
 
       .login-subtitle {
-        color: #888;
+        color: #8a7040;
         font-size: 8px;
         margin: 0 0 24px 0;
+        text-shadow: 1px 1px 0 #000;
       }
 
       .auth-tabs {
@@ -291,18 +322,21 @@ export class LoginScreen {
       .tab-btn {
         flex: 1;
         padding: 10px;
-        background: #0d0d1a;
-        border: 2px solid #333;
-        color: #888;
+        background: #0d0906;
+        border: 2px solid #3a2818;
+        color: #886644;
         font-family: 'Press Start 2P', monospace;
         font-size: 9px;
         cursor: pointer;
+        box-shadow: inset 1px 1px 0 0 #060302, inset -1px -1px 0 0 #4a3828;
+        transition: border-color 0.15s, color 0.15s;
       }
 
       .tab-btn.active {
-        border-color: #e6b422;
-        color: #e6b422;
-        background: #1a1a0d;
+        border-color: #c8a84e;
+        color: #c8a84e;
+        background: #1a1008;
+        box-shadow: inset 1px 1px 0 0 #2a1a08, inset -1px -1px 0 0 #5a4830;
       }
 
       .login-field {
@@ -311,26 +345,44 @@ export class LoginScreen {
       }
 
       .login-field label {
-        color: #ccc;
-        font-size: 10px;
+        color: #8a7040;
+        font-size: 8px;
         display: block;
         margin-bottom: 8px;
+        text-shadow: 1px 1px 0 #000;
+        text-transform: uppercase;
+        letter-spacing: 2px;
       }
 
       .login-field input {
         width: 100%;
         padding: 10px;
-        background: #0d0d1a;
-        border: 2px solid #333;
-        color: #fff;
+        background: #0d0906;
+        border: 2px solid #3a2818;
+        box-shadow:
+          inset 1px 1px 0 0 #060302,
+          inset -1px -1px 0 0 #4a3828,
+          inset 0 0 4px rgba(0,0,0,0.5);
+        color: #e0d0a0;
         font-family: 'Press Start 2P', monospace;
         font-size: 10px;
         outline: none;
         box-sizing: border-box;
+        transition: border-color 0.15s, box-shadow 0.15s;
       }
 
       .login-field input:focus {
-        border-color: #e6b422;
+        border-color: #c8a84e;
+        box-shadow:
+          inset 1px 1px 0 0 #060302,
+          inset -1px -1px 0 0 #4a3828,
+          inset 0 0 4px rgba(0,0,0,0.5),
+          0 0 0 1px #c8a84e,
+          0 0 6px rgba(200,168,78,0.2);
+      }
+
+      .login-field input::placeholder {
+        color: #4a3828;
       }
 
       .auth-error {
@@ -338,6 +390,7 @@ export class LoginScreen {
         font-size: 8px;
         min-height: 16px;
         margin-bottom: 8px;
+        text-shadow: 1px 1px 0 #000;
       }
 
       .class-select {
@@ -348,23 +401,32 @@ export class LoginScreen {
       .class-btn {
         flex: 1;
         padding: 12px 8px;
-        background: #0d0d1a;
-        border: 2px solid #333;
-        color: #aaa;
+        background: #0d0906;
+        border: 2px solid #3a2818;
+        color: #886644;
         cursor: pointer;
         font-family: 'Press Start 2P', monospace;
         font-size: 8px;
-        transition: border-color 0.2s;
+        box-shadow:
+          inset 1px 1px 0 0 #060302,
+          inset -1px -1px 0 0 #4a3828;
+        transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
       }
 
       .class-btn:hover {
-        border-color: #666;
+        border-color: #6b5430;
+        color: #c8a84e;
       }
 
       .class-btn.selected {
-        border-color: #e6b422;
-        color: #e6b422;
-        background: #1a1a0d;
+        border-color: #c8a84e;
+        color: #c8a84e;
+        background: #1a1008;
+        box-shadow:
+          inset 1px 1px 0 0 #2a1a08,
+          inset -1px -1px 0 0 #5a4830,
+          0 0 0 1px #c8a84e,
+          0 0 8px rgba(200,168,78,0.15);
       }
 
       .class-icon {
@@ -380,82 +442,118 @@ export class LoginScreen {
       .play-now-btn {
         width: 100%;
         padding: 18px;
-        background: linear-gradient(180deg, #ffd700 0%, #e6b422 50%, #c69a1a 100%);
-        border: 3px solid #ffd700;
-        color: #1a1a2e;
+        border: 2px solid #a08030;
+        outline: 1px solid #0a0604;
+        box-shadow:
+          inset 1px 1px 0 0 #ffe070,
+          inset -1px -1px 0 0 #705010,
+          0 0 12px rgba(230,180,34,0.2);
+        background: linear-gradient(to bottom, #e6c860 0%, #c8a020 50%, #a08018 100%);
+        color: #1a0e04;
         font-family: 'Press Start 2P', monospace;
         font-size: 14px;
         cursor: pointer;
-        text-shadow: 1px 1px 0 rgba(255,255,255,0.3);
-        transition: all 0.2s;
+        text-shadow: 0 1px 0 rgba(255,255,255,0.2);
         letter-spacing: 2px;
+        transition: box-shadow 0.15s, background 0.15s;
       }
 
       .play-now-btn:hover {
-        background: linear-gradient(180deg, #ffe44d 0%, #ffc832 50%, #e6b422 100%);
-        border-color: #ffe44d;
+        background: linear-gradient(to bottom, #f0d870 0%, #d8b030 50%, #b09020 100%);
+        box-shadow:
+          inset 1px 1px 0 0 #ffe890,
+          inset -1px -1px 0 0 #806018,
+          0 0 16px rgba(230,180,34,0.35);
       }
 
       .play-now-btn:active {
-        background: linear-gradient(180deg, #c69a1a 0%, #a67d15 50%, #8a6910 100%);
-        border-color: #c69a1a;
+        background: linear-gradient(to bottom, #a08018 0%, #c8a020 50%, #e6c860 100%);
+        box-shadow:
+          inset 1px 1px 0 0 #705010,
+          inset -1px -1px 0 0 #ffe070;
       }
 
       .play-now-btn:disabled {
-        background: #666;
-        border-color: #666;
+        background: #3a2818;
+        border-color: #3a2818;
+        color: #886644;
+        box-shadow: none;
+        outline-color: transparent;
         cursor: not-allowed;
       }
 
       .join-btn {
         width: 100%;
         padding: 14px;
-        background: #e6b422;
-        border: none;
-        color: #1a1a2e;
+        border: 2px solid #5a4428;
+        box-shadow:
+          inset 1px 1px 0 0 #8a7040,
+          inset -1px -1px 0 0 #201008;
+        background: linear-gradient(to bottom, #5a4428 0%, #4a3518 100%);
+        color: #c8a84e;
         font-family: 'Press Start 2P', monospace;
         font-size: 12px;
         cursor: pointer;
         margin-top: 8px;
-        transition: background 0.2s;
+        text-shadow: 1px 1px 0 #000;
+        transition: box-shadow 0.15s, background 0.15s;
       }
 
       .join-btn:hover {
-        background: #ffc832;
+        background: linear-gradient(to bottom, #6a5438 0%, #5a4528 100%);
+        box-shadow:
+          inset 1px 1px 0 0 #9a8050,
+          inset -1px -1px 0 0 #301808,
+          0 0 8px rgba(200,168,78,0.15);
       }
 
       .join-btn:active {
-        background: #c69a1a;
+        background: linear-gradient(to bottom, #3a2510 0%, #4a3518 100%);
+        box-shadow:
+          inset 1px 1px 0 0 #201008,
+          inset -1px -1px 0 0 #8a7040;
       }
 
       .join-btn:disabled {
-        background: #666;
+        background: #3a2818;
+        border-color: #3a2818;
+        color: #886644;
+        box-shadow: none;
         cursor: not-allowed;
       }
 
       .twitch-divider {
-        margin: 16px 0;
-        color: #555;
+        margin: 20px 0;
+        color: #6b5430;
         font-size: 8px;
         display: flex;
         align-items: center;
         gap: 12px;
+        text-shadow: 1px 1px 0 #000;
       }
 
-      .twitch-divider::before,
+      .twitch-divider::before {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(to right, transparent, #6b5430);
+      }
       .twitch-divider::after {
         content: '';
         flex: 1;
         height: 1px;
-        background: #333;
+        background: linear-gradient(to left, transparent, #6b5430);
       }
 
       .twitch-btn {
         display: block;
         width: 100%;
         padding: 12px;
-        background: #9146FF;
-        border: none;
+        background: linear-gradient(to bottom, #9e56ff, #7b38db);
+        border: 2px solid #6a2cb8;
+        box-shadow:
+          inset 1px 1px 0 0 #b876ff,
+          inset -1px -1px 0 0 #5020a0;
         color: #fff;
         font-family: 'Press Start 2P', monospace;
         font-size: 9px;
@@ -463,32 +561,43 @@ export class LoginScreen {
         text-decoration: none;
         text-align: center;
         box-sizing: border-box;
-        transition: background 0.2s;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+        transition: box-shadow 0.15s, background 0.15s;
       }
 
       .twitch-btn:hover {
-        background: #a970ff;
+        background: linear-gradient(to bottom, #b070ff, #8e48eb);
+        box-shadow:
+          inset 1px 1px 0 0 #c888ff,
+          inset -1px -1px 0 0 #6030b0,
+          0 0 8px rgba(158,86,255,0.2);
       }
 
       .character-info {
         margin: 20px 0;
         padding: 16px;
-        background: #0d0d1a;
-        border: 2px solid #333;
+        background: #0d0906;
+        border: 2px solid #3a2818;
+        box-shadow:
+          inset 1px 1px 0 0 #060302,
+          inset -1px -1px 0 0 #4a3828,
+          inset 0 0 4px rgba(0,0,0,0.5);
       }
 
       .char-name {
         display: block;
-        color: #e6b422;
+        color: #c8a84e;
         font-size: 14px;
         margin-bottom: 8px;
+        text-shadow: 1px 1px 0 #000, 0 0 8px rgba(200,168,78,0.3);
       }
 
       .char-class {
         display: block;
-        color: #888;
+        color: #8a7040;
         font-size: 10px;
         text-transform: capitalize;
+        text-shadow: 1px 1px 0 #000;
       }
 
       .logout-btn {
@@ -496,17 +605,19 @@ export class LoginScreen {
         width: 100%;
         padding: 10px;
         background: transparent;
-        border: 1px solid #444;
-        color: #888;
+        border: 1px solid #3a2818;
+        color: #886644;
         font-family: 'Press Start 2P', monospace;
         font-size: 8px;
         cursor: pointer;
         margin-top: 12px;
+        text-shadow: 1px 1px 0 #000;
+        transition: border-color 0.15s, color 0.15s;
       }
 
       .logout-btn:hover {
-        border-color: #888;
-        color: #ccc;
+        border-color: #6b5430;
+        color: #c8a84e;
       }
     `;
     document.head.appendChild(style);

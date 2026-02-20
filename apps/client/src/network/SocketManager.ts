@@ -8,6 +8,7 @@ import type {
   InventorySlot,
   EquipmentLoadout,
   NpcData,
+  QuestData,
 } from "@shireland/shared";
 
 type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -28,6 +29,10 @@ export class SocketManager {
   onItemsDropped?: (data: { items: WorldItem[]; fromX: number; fromY: number }) => void;
   onNpcSnapshot?: (npcs: NpcData[]) => void;
   onNpcMoved?: (data: { id: string; x: number; y: number; direction: number; debug?: string }) => void;
+  onNpcChat?: (data: { id: string; text: string; isResponse?: boolean }) => void;
+  onQuestUpdate?: (quests: QuestData[]) => void;
+  onQuestSnapshot?: (quests: QuestData[]) => void;
+  onNpcDebug?: (states: { npcId: string; dialogKey: string; state: string; questStatus?: string }[]) => void;
   onAuthError?: (message: string) => void;
 
   constructor() {
@@ -89,6 +94,22 @@ export class SocketManager {
       this.onNpcMoved?.(data);
     });
 
+    this.socket.on("npc:chat", (data) => {
+      this.onNpcChat?.(data);
+    });
+
+    this.socket.on("quest:update", ({ quests }) => {
+      this.onQuestUpdate?.(quests);
+    });
+
+    this.socket.on("quest:snapshot", ({ quests }) => {
+      this.onQuestSnapshot?.(quests);
+    });
+
+    this.socket.on("npc:debug", ({ states }) => {
+      this.onNpcDebug?.(states);
+    });
+
     this.socket.on("auth:error", ({ message }) => {
       this.onAuthError?.(message);
     });
@@ -128,6 +149,14 @@ export class SocketManager {
 
   sendDrop(slotIndex: number) {
     this.socket.emit("item:drop", { slotIndex });
+  }
+
+  sendNpcTalk(npcId: string) {
+    this.socket.emit("npc:talk", { npcId });
+  }
+
+  sendNpcDebugRequest() {
+    this.socket.emit("npc:debug-request");
   }
 
   disconnect() {

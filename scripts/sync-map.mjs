@@ -29,7 +29,7 @@ const tmxDir = dirname(TMX_PATH);
 // up to 10 distinct route colors can coexist on object layers.
 function buildGidTypeMap(tilesetRefs, baseDir) {
   const gidTypeMap = new Map(); // gid → { type, npcType, localId, pauseChance?, pauseMinMs?, pauseMaxMs? }
-  const NPC_TYPE_BY_TILE_ID = { 3: "guard", 4: "elder", 5: "merchant", 6: "villager", 47: "dog" };
+  const NPC_TYPE_BY_TILE_ID = { 3: "guard", 4: "elder", 5: "merchant", 6: "villager", 47: "dog", 48: "captain" };
 
   for (const ref of tilesetRefs) {
     const firstgid = ref.firstgid;
@@ -61,6 +61,7 @@ function buildGidTypeMap(tilesetRefs, baseDir) {
           if (pName === "pauseChance") entry.pauseChance = parseFloat(pValue);
           else if (pName === "pauseMinMs") entry.pauseMinMs = parseInt(pValue);
           else if (pName === "pauseMaxMs") entry.pauseMaxMs = parseInt(pValue);
+          else if (pName === "dialogKey") entry.dialogKey = pValue;
         }
       }
 
@@ -101,6 +102,7 @@ function extractNpcData(objectLayers, gidTypeMap, tileW, tileH) {
             if (p.name === "pauseChance") pauseOverrides.pauseChance = Number(p.value);
             else if (p.name === "pauseMinMs") pauseOverrides.pauseMinMs = Number(p.value);
             else if (p.name === "pauseMaxMs") pauseOverrides.pauseMaxMs = Number(p.value);
+            else if (p.name === "dialogKey") pauseOverrides.dialogKey = String(p.value);
           }
         }
         allNpcs.push({
@@ -111,6 +113,7 @@ function extractNpcData(objectLayers, gidTypeMap, tileW, tileH) {
           ...(info.pauseChance !== undefined && { pauseChance: info.pauseChance }),
           ...(info.pauseMinMs !== undefined && { pauseMinMs: info.pauseMinMs }),
           ...(info.pauseMaxMs !== undefined && { pauseMaxMs: info.pauseMaxMs }),
+          ...(info.dialogKey !== undefined && { dialogKey: info.dialogKey }),
           ...pauseOverrides,
         });
       } else if (info.type === "route" || info.type === "wander") {
@@ -179,6 +182,7 @@ function extractNpcData(objectLayers, gidTypeMap, tileW, tileH) {
 
     npcDefs.push({
       id: `npc-${npc.npcType}-${npcDefs.length}`, name: npc.name, npcType: npc.npcType, route: routeName,
+      ...(npc.dialogKey !== undefined && { dialogKey: npc.dialogKey }),
       ...(npc.pauseChance !== undefined && { pauseChance: npc.pauseChance }),
       ...(npc.pauseMinMs !== undefined && { pauseMinMs: npc.pauseMinMs }),
       ...(npc.pauseMaxMs !== undefined && { pauseMaxMs: npc.pauseMaxMs }),

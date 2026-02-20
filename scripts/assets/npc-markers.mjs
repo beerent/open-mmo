@@ -20,6 +20,7 @@ const MARKERS = [
   { id: 'npc_elder',     src: '/assets/sprites/npcs/elder/Run_Down.png' },
   { id: 'npc_merchant',  src: '/assets/sprites/npcs/merchant/Run_Down.png' },
   { id: 'npc_villager',  src: '/assets/sprites/npcs/villager/Run_Down.png' },
+  { id: 'npc_captain',   src: '/assets/sprites/npcs/captain/Run_Down.png' },
 ];
 
 const { page, cleanup } = await openStudio();
