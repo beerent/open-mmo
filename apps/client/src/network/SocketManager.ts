@@ -15,6 +15,7 @@ type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export class SocketManager {
   private socket: TypedSocket;
+  private lastJoin?: { name: string; playerClass: string; characterId?: number };
 
   // Callbacks
   onSnapshot?: (players: PlayerData[]) => void;
@@ -40,6 +41,11 @@ export class SocketManager {
 
     this.socket.on("connect", () => {
       console.log(`[Shireland] Connected as ${this.socket.id}`);
+      // Auto-rejoin on reconnect (laptop lid close, tab switch, wifi drop)
+      if (this.lastJoin) {
+        console.log("[Shireland] Reconnecting — re-joining...");
+        this.socket.emit("player:join", this.lastJoin);
+      }
     });
 
     this.socket.on("disconnect", () => {
@@ -124,6 +130,7 @@ export class SocketManager {
   }
 
   join(name: string, playerClass: string, characterId?: number) {
+    this.lastJoin = { name, playerClass, characterId };
     this.socket.emit("player:join", { name, playerClass, characterId });
   }
 

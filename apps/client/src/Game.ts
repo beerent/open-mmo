@@ -345,6 +345,7 @@ export class Game {
     };
 
     this.socketManager.onItemsSnapshot = (items) => {
+      this.itemRenderer.clear();
       for (const item of items) {
         this.itemRenderer.addItem(item);
       }
@@ -603,10 +604,14 @@ export class Game {
 
         this.socketManager.sendNpcTalk(facingNpcForAction.id);
       } else {
-        const itemId = this.itemRenderer.getItemAtTile(
-          this.localPlayer.tileX,
-          this.localPlayer.tileY
-        );
+        // Check both logical tile and visual tile (mid-move the logical tile
+        // has already advanced but the server still has the old position)
+        const lx = this.localPlayer.tileX;
+        const ly = this.localPlayer.tileY;
+        const vx = Math.round(this.localPlayer.getVisualTileX());
+        const vy = Math.round(this.localPlayer.getVisualTileY());
+        const itemId = this.itemRenderer.getItemAtTile(lx, ly)
+          ?? ((vx !== lx || vy !== ly) ? this.itemRenderer.getItemAtTile(vx, vy) : null);
         if (itemId) {
           this.socketManager.sendPickup(itemId);
         }

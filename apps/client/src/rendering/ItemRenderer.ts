@@ -72,6 +72,13 @@ export class ItemRenderer {
     }
   }
 
+  clear(): void {
+    for (const [, entry] of this.items) {
+      this.container.removeChild(entry.sprite);
+    }
+    this.items.clear();
+  }
+
   getItemAtTile(tileX: number, tileY: number): string | null {
     for (const [id, entry] of this.items) {
       if (entry.x === tileX && entry.y === tileY) return id;
